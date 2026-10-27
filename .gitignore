@@ -11,8 +11,7 @@ sam-data/
 
 # analysis outputs, at any depth (./output of every run directory)
 output/
-!output/bench/
-**/output/
+**/output/*
 .pi-sessions/
 
 # verification / development runs and their logs
