@@ -1,0 +1,184 @@
+#!/usr/bin/env bash
+# SAM — pi-based GWAS + PRS harness launcher.
+#
+#   ./sam bootstrap                         install pixi, Node.js, pi and the analysis environments
+#   ./sam agent --input DIR --resource DIR  start the pi agent (extra args go to pi)
+#   ./sam status|doctor|run ... --input DIR --resource DIR   use the analysis core without an agent
+#   ./sam setup [--env E | --step S]         (re)install analysis environments
+#   ./sam llm list|pull|models-json|vllm-command|vllm-install|vllm-serve   local LLMs
+#
+# Input and resource directories are read-only; everything is written to
+# ./output of the directory you run from (override with --output).
+set -euo pipefail
+
+# resolve this script through symlinks without GNU `readlink -f` (macOS has none)
+src="${BASH_SOURCE[0]}"
+while [ -L "$src" ]; do
+	dir="$(cd "$(dirname "$src")" && pwd -P)"
+	src="$(readlink "$src")"
+	case "$src" in /*) ;; *) src="$dir/$src" ;; esac
+done
+SAM_HOME="$(cd "$(dirname "$src")" && pwd -P)"
+export SAM_HOME
+PIXI_VERSION="${SAM_PIXI_VERSION:-v0.81.0}"
+PI_VERSION="${SAM_PI_VERSION:-1.4.0}"
+PIXI="$SAM_HOME/.sam/bin/pixi"
+export PIXI_CACHE_DIR="${PIXI_CACHE_DIR:-$SAM_HOME/.sam/cache/pixi}"
+export npm_config_cache="${npm_config_cache:-$SAM_HOME/.sam/cache/npm}"
+export npm_config_update_notifier=false
+ENVS="$SAM_HOME/.pixi/envs"
+PY="$ENVS/default/bin/python"
+NODE="$ENVS/agent/bin/node"
+PI_JS="$SAM_HOME/.sam/pi/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js"
+# logins and models.json stay inside the harness unless SAM_PI_AGENT_DIR says otherwise
+export PI_CODING_AGENT_DIR="${SAM_PI_AGENT_DIR:-$SAM_HOME/.pi-agent}"
+export PYTHONDONTWRITEBYTECODE=1
+
+die() { echo "sam: $*" >&2; exit 1; }
+need_core() { [ -x "$PY" ] || die "analysis environment missing; run ./sam bootstrap"; }
+samkit() { need_core; PYTHONPATH="$SAM_HOME/src" "$PY" -m samkit "$@"; }
+absdir() { (cd "$1" && pwd -P); }
+abspath() { (cd "$(dirname "$1")" 2>/dev/null && printf '%s/%s\n' "$(pwd -P)" "$(basename "$1")") || printf '%s\n' "$1"; }
+sha256() { if command -v sha256sum >/dev/null; then sha256sum "$@"; else shasum -a 256 "$@"; fi; }
+# "$1" is an option that needs a value in "$2"
+need_value() { [ $# -ge 2 ] && [ -n "$2" ] && [ "${2#--}" = "$2" ] || die "option $1 needs a value"; }
+
+# samkit wants global options before the subcommand; accept them anywhere.
+core() {
+	local global=() rest=()
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--input | --resource | --output | --build | --threads) need_value "$@"; global+=("$1" "$2"); shift 2 ;;
+			--rebind) global+=("$1"); shift ;;
+			*) rest+=("$1"); shift ;;
+		esac
+	done
+	samkit ${global[@]+"${global[@]}"} ${rest[@]+"${rest[@]}"}
+}
+
+usage() { sed -n '2,11p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+
+cmd_bootstrap() {
+	local envs="default,regenie,ldsc,prscs,agent"
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--envs) need_value "$@"; envs="$2"; shift 2 ;;
+			*) die "bootstrap: unknown option $1" ;;
+		esac
+	done
+	command -v curl >/dev/null || die "curl is required"
+	mkdir -p "$SAM_HOME/.sam/bin" "$PIXI_CACHE_DIR"
+	if [ ! -x "$PIXI" ]; then
+		local arch; arch="$(uname -m)"
+		local os; os="$(uname -s)"
+		local asset
+		case "$os/$arch" in
+			Linux/x86_64) asset="pixi-x86_64-unknown-linux-musl.tar.gz" ;;
+			Linux/aarch64) asset="pixi-aarch64-unknown-linux-musl.tar.gz" ;;
+			Darwin/arm64) asset="pixi-aarch64-apple-darwin.tar.gz" ;;
+			Darwin/x86_64) asset="pixi-x86_64-apple-darwin.tar.gz" ;;
+			*) die "unsupported platform $os/$arch" ;;
+		esac
+		echo "sam: downloading pixi $PIXI_VERSION ($asset)"
+		local url="https://github.com/prefix-dev/pixi/releases/download/$PIXI_VERSION/$asset"
+		local tmp; tmp="$(mktemp -d "$SAM_HOME/.sam/pixi.XXXX")"
+		curl -fsSL -o "$tmp/$asset" "$url"
+		curl -fsSL -o "$tmp/$asset.sha256" "$url.sha256"
+		[ "$(cut -d' ' -f1 "$tmp/$asset.sha256")" = "$(sha256 "$tmp/$asset" | cut -d' ' -f1)" ] \
+			|| die "pixi checksum mismatch"
+		tar -xzf "$tmp/$asset" -C "$SAM_HOME/.sam/bin" pixi
+		rm -rf "$tmp"
+	fi
+	for e in ${envs//,/ }; do
+		echo "sam: installing environment '$e'"
+		"$PIXI" install --manifest-path "$SAM_HOME/pixi.toml" -e "$e"
+	done
+	if [[ ",$envs," == *",agent,"* ]]; then
+		echo "sam: installing pi $PI_VERSION"
+		mkdir -p "$SAM_HOME/.sam/pi"
+		[ -f "$SAM_HOME/.sam/pi/package.json" ] || echo '{"name":"sam-pi-runtime","private":true}' >"$SAM_HOME/.sam/pi/package.json"
+		PATH="$ENVS/agent/bin:$PATH" npm install --prefix "$SAM_HOME/.sam/pi" --no-audit --no-fund --ignore-scripts \
+			"@earendil-works/pi-coding-agent@$PI_VERSION" >/dev/null
+		ln -sfn ../.sam/pi/node_modules "$SAM_HOME/pi-package/node_modules"
+	fi
+	echo "sam: done. Next: ./sam doctor --resource DIR, then ./sam agent --input DIR --resource DIR"
+}
+
+cmd_agent() {
+	[ -x "$NODE" ] && [ -f "$PI_JS" ] || die "pi is not installed; run ./sam bootstrap"
+	local input="${SAM_INPUT:-}" resource="${SAM_RESOURCE:-}" output="" privacy="${SAM_PRIVACY:-auto}"
+	local approve="${SAM_APPROVE:-ask}" consultant="${SAM_CONSULTANT:-}" threads="${SAM_THREADS:-}" build="${SAM_BUILD:-}"
+	local pi_args=()
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--input) need_value "$@"; input="$2"; shift 2 ;;
+			--resource) need_value "$@"; resource="$2"; shift 2 ;;
+			--output) need_value "$@"; output="$2"; shift 2 ;;
+			--privacy) need_value "$@"; privacy="$2"; shift 2 ;;
+			--approvals) need_value "$@"; approve="$2"; shift 2 ;;
+			--consultant) need_value "$@"; consultant="$2"; shift 2 ;;
+			--threads) need_value "$@"; threads="$2"; shift 2 ;;
+			--build) need_value "$@"; build="$2"; shift 2 ;;
+			--) shift; pi_args+=("$@"); break ;;
+			*) pi_args+=("$1"); shift ;;
+		esac
+	done
+	[ -n "$input" ] || die "agent: --input DIR is required (data directory, read-only)"
+	[ -d "$input" ] || die "agent: input directory not found: $input"
+	[ -z "$resource" ] || [ -d "$resource" ] || die "agent: resource directory not found: $resource"
+	privacy="$(printf '%s' "$privacy" | tr '[:upper:]' '[:lower:]')"
+	case "$privacy" in auto | on | off) ;; *) die "agent: --privacy must be auto, on or off" ;; esac
+	case "$approve" in ask | allow | deny) ;; *) die "agent: --approvals must be ask, allow or deny" ;; esac
+	input="$(absdir "$input")"
+	[ -z "$resource" ] || resource="$(absdir "$resource")"
+	output="$(abspath "${output:-$PWD/output}")"
+	# never create the output directory inside a read-only data directory
+	for d in "$input" "$resource"; do
+		[ -n "$d" ] || continue
+		case "$output/" in "$d"/*) die "agent: output $output would be inside the read-only directory $d; run from another directory" ;; esac
+	done
+	mkdir -p "$output"
+	output="$(absdir "$output")"
+	local args=(-e "$SAM_HOME/pi-package/extensions/sam/index.ts"
+		--session-dir "$output/.pi-sessions"
+		--sam-input "$input" --sam-output "$output"
+		--sam-privacy "$privacy" --sam-approve "$approve")
+	[ -z "$resource" ] || args+=(--sam-resource "$resource")
+	[ -z "$consultant" ] || args+=(--sam-consultant "$consultant")
+	[ -z "$threads" ] || args+=(--sam-threads "$threads")
+	[ -z "$build" ] || args+=(--sam-build "$build")
+	mkdir -p "$PI_CODING_AGENT_DIR"
+	exec "$NODE" "$PI_JS" "${args[@]}" ${pi_args[@]+"${pi_args[@]}"}
+}
+
+cmd_llm() {
+	need_core
+	[ $# -gt 0 ] || set -- list
+	case "$1" in
+		vllm-install)
+			"$PIXI" install --manifest-path "$SAM_HOME/models/vllm/pixi.toml" ;;
+		*)
+			PYTHONPATH="$SAM_HOME/src" "$PY" -m samkit.llm "$@" ;;
+	esac
+}
+
+main() {
+	local cmd="${1:-help}"
+	[ $# -gt 0 ] && shift
+	case "$cmd" in
+		bootstrap) cmd_bootstrap "$@" ;;
+		agent) cmd_agent "$@" ;;
+		llm) cmd_llm "$@" ;;
+		setup) samkit setup "$@" ;;
+		status | doctor | resources | report) core "$cmd" "$@" ;;
+		run) core "$@" ;;
+		test)
+			need_core
+			(cd "$SAM_HOME" && PYTHONPATH="$SAM_HOME/src" "$PY" -m pytest -q -p no:cacheprovider tests "$@")
+			(cd "$SAM_HOME/pi-package" && "$NODE" --test tests/*.test.ts) ;;
+		help | -h | --help) usage ;;
+		*) die "unknown command '$cmd' (try ./sam help)" ;;
+	esac
+}
+
+main "$@"

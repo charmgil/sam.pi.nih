@@ -1,0 +1,32 @@
+# runtime environments and tool caches (recreated by `./sam bootstrap`)
+.pixi/
+.sam/
+.pi-agent/
+node_modules
+models/vllm/.pixi/
+
+# data never goes into git
+sam-data/
+
+# analysis outputs, at any depth (./output of every run directory)
+output/
+**/output/
+.pi-sessions/
+
+# verification / development runs and their logs
+.sam/devrun*/
+devrun*/
+agent*.jsonl
+agent*.err
+*.log
+
+# previous implementation archives (kept locally for reference)
+arxiv/temp/
+GWAS.zip
+PRS.zip
+slides/
+
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/

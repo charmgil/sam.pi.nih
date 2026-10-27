@@ -1,0 +1,391 @@
+{
+  "_about": "SAM model catalog. Tags verified against registry.ollama.ai / Hugging Face on 2026-10-27. Benchmark notes are vendor-reported. See docs/MODELS.md. Consultants use num_ctx 16384 (short questions) to leave VRAM for the agent model.",
+  "context_length": 65536,
+  "cloud": [
+    {
+      "provider": "anthropic",
+      "login": "/login → Anthropic (Claude Pro/Max subscription), or ANTHROPIC_API_KEY",
+      "models": [
+        "claude-opus-5-5",
+        "claude-sonnet-5-5",
+        "claude-haiku-5-5",
+        "claude-fable-5-1"
+      ],
+      "recommended": "claude-sonnet-5-5"
+    },
+    {
+      "provider": "openai-codex",
+      "login": "/login → OpenAI (ChatGPT Plus/Pro subscription)",
+      "models": [
+        "gpt-6.1-sol",
+        "gpt-6-sol",
+        "gpt-6-luna",
+        "gpt-5.6-sol"
+      ],
+      "recommended": "gpt-6-sol"
+    },
+    {
+      "provider": "openai",
+      "login": "OPENAI_API_KEY (API billing)",
+      "models": [
+        "gpt-6.1-sol",
+        "gpt-6-sol",
+        "gpt-5.5",
+        "gpt-5.4-mini"
+      ],
+      "recommended": "gpt-6-sol"
+    }
+  ],
+  "local": [
+    {
+      "id": "gpt-oss-20b",
+      "role": "agent",
+      "tier": "small/fast (default)",
+      "ollama": "gpt-oss:20b",
+      "hf": "openai/gpt-oss-20b",
+      "size_gb": 14,
+      "context": 131072,
+      "license": "Apache-2.0",
+      "reasoning": true,
+      "vision": false,
+      "vllm": {
+        "model": "openai/gpt-oss-20b",
+        "args": [
+          "--enable-auto-tool-choice",
+          "--tool-call-parser",
+          "openai"
+        ]
+      },
+      "note": "Mature tool calling (Harmony). GPQA 71.5, SWE-bench Verified 34.0."
+    },
+    {
+      "id": "qwen3.6-35b-a3b",
+      "role": "agent",
+      "tier": "mid (recommended)",
+      "ollama": "qwen3.6:35b-a3b-q4_K_M",
+      "hf": "Qwen/Qwen3.6-35B-A3B-FP8",
+      "size_gb": 24,
+      "context": 262144,
+      "license": "Apache-2.0",
+      "reasoning": true,
+      "vision": true,
+      "vllm": {
+        "model": "Qwen/Qwen3.6-35B-A3B-FP8",
+        "args": [
+          "--enable-auto-tool-choice",
+          "--tool-call-parser",
+          "qwen3_coder",
+          "--reasoning-parser",
+          "qwen3"
+        ]
+      },
+      "note": "MoE, 3B active: fast. SWE-bench Verified 73.4, tau3 67.2, GPQA 86.0. q8_0 tag (39 GB) if context allows."
+    },
+    {
+      "id": "qwen3.8-27b",
+      "role": "agent",
+      "tier": "best quality that fits",
+      "ollama": "qwen3.8:27b-q8_0",
+      "hf": "Qwen/Qwen3.8-27B-FP8",
+      "size_gb": 30,
+      "context": 262144,
+      "license": "Apache-2.0",
+      "reasoning": true,
+      "vision": true,
+      "vllm": {
+        "model": "Qwen/Qwen3.8-27B-FP8",
+        "args": [
+          "--enable-auto-tool-choice",
+          "--tool-call-parser",
+          "qwen3_coder",
+          "--reasoning-parser",
+          "qwen3"
+        ]
+      },
+      "note": "Dense. Terminal-Bench 2.1 73.0, GPQA-Diamond 89.2, LiveCodeBench v6 90.3."
+    },
+    {
+      "id": "gemma4-31b",
+      "role": "agent",
+      "tier": "alternative",
+      "ollama": "gemma4:31b-it-q4_K_M",
+      "hf": "google/gemma-4-31B-it",
+      "size_gb": 20,
+      "context": 262144,
+      "license": "Apache-2.0",
+      "reasoning": true,
+      "vision": true,
+      "vllm": {
+        "model": "RedHatAI/gemma-4-31B-it-FP8-dynamic",
+        "args": [
+          "--enable-auto-tool-choice",
+          "--tool-call-parser",
+          "gemma4",
+          "--reasoning-parser",
+          "gemma4"
+        ]
+      },
+      "note": "tau2 76.9, GPQA 84.3. Dense: larger KV cache at long context."
+    },
+    {
+      "id": "muse-glimmer-30b",
+      "role": "agent",
+      "tier": "alternative",
+      "ollama": "muse-glimmer:30b",
+      "hf": "meta-models/Muse-Glimmer-30B",
+      "size_gb": 18,
+      "context": 131072,
+      "license": "Apache-2.0",
+      "reasoning": true,
+      "vision": true,
+      "vllm": {
+        "model": "RedHatAI/Muse-Glimmer-30B-FP8-block",
+        "args": [
+          "--enable-auto-tool-choice",
+          "--tool-call-parser",
+          "muse_glimmer",
+          "--reasoning-parser",
+          "muse_glimmer"
+        ]
+      },
+      "note": "Meta. MCP-Atlas 75.5, SWE-bench Verified 76.0."
+    },
+    {
+      "id": "glm-4.7-flash",
+      "role": "agent",
+      "tier": "alternative",
+      "ollama": "glm-4.7-flash:latest",
+      "hf": "zai-org/GLM-4.7-Flash",
+      "size_gb": 19,
+      "context": 202752,
+      "license": "MIT",
+      "reasoning": true,
+      "vision": false,
+      "vllm": {
+        "model": "zai-org/GLM-4.7-Flash",
+        "args": [
+          "--enable-auto-tool-choice",
+          "--tool-call-parser",
+          "glm47",
+          "--reasoning-parser",
+          "glm45"
+        ]
+      },
+      "note": "MoE 30B-A3B. tau2 79.5, SWE-bench Verified 59.2."
+    },
+    {
+      "id": "nemotron-3.5-lightning",
+      "role": "agent",
+      "tier": "throughput",
+      "ollama": "nemotron-3.5-lightning:30b",
+      "hf": "nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16",
+      "size_gb": 25,
+      "context": 1048576,
+      "license": "OpenMDW-1.1",
+      "reasoning": true,
+      "vision": false,
+      "vllm": {
+        "model": "nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4",
+        "args": [
+          "--enable-auto-tool-choice",
+          "--tool-call-parser",
+          "qwen3_coder",
+          "--reasoning-parser",
+          "nemotron_v3"
+        ]
+      },
+      "note": "Mamba/MoE hybrid, very long context; weaker on agentic benchmarks (TB2.1 24.6)."
+    },
+    {
+      "id": "devstral-small-2",
+      "role": "agent",
+      "tier": "alternative (coding)",
+      "ollama": "devstral-small-2:24b",
+      "hf": "mistralai/Devstral-Small-2-24B-Instruct-2512",
+      "size_gb": 15,
+      "context": 262144,
+      "license": "Apache-2.0",
+      "reasoning": false,
+      "vision": true,
+      "vllm": {
+        "model": "mistralai/Devstral-Small-2-24B-Instruct-2512",
+        "args": [
+          "--enable-auto-tool-choice",
+          "--tool-call-parser",
+          "mistral"
+        ]
+      },
+      "note": "SWE-bench Verified 68.0."
+    },
+    {
+      "id": "granite4.1-30b",
+      "role": "agent",
+      "tier": "alternative",
+      "ollama": "granite4.1:30b",
+      "hf": "ibm-granite/granite-4.1-30b",
+      "size_gb": 17,
+      "context": 131072,
+      "license": "Apache-2.0",
+      "reasoning": false,
+      "vision": false,
+      "note": "BFCL v3 73.7 but weak reasoning (GPQA 45.8)."
+    },
+    {
+      "id": "qwen3-30b",
+      "role": "agent",
+      "tier": "baseline (already installed)",
+      "ollama": "qwen3:30b",
+      "hf": "Qwen/Qwen3-30B-A3B",
+      "size_gb": 18,
+      "context": 40960,
+      "license": "Apache-2.0",
+      "reasoning": true,
+      "vision": false,
+      "note": "2025 Qwen3; superseded by qwen3.6 / qwen3.8. Kept for comparison."
+    },
+    {
+      "id": "gpt-oss-120b",
+      "role": "agent",
+      "tier": "large (CPU offload, slow)",
+      "ollama": "gpt-oss:120b",
+      "hf": "openai/gpt-oss-120b",
+      "size_gb": 65,
+      "context": 131072,
+      "license": "Apache-2.0",
+      "reasoning": true,
+      "vision": false,
+      "note": "Does not fit 48 GB VRAM; Ollama offloads the rest to RAM. GPQA-Diamond 80.8."
+    }
+  ],
+  "consultants": [
+    {
+      "id": "intern-s1-mini",
+      "role": "consultant",
+      "tier": "small consultant",
+      "ollama": "internlm/interns1:mini-q8_0",
+      "hf": "internlm/Intern-S1-mini",
+      "size_gb": 9,
+      "context": 32768,
+      "license": "Apache-2.0",
+      "reasoning": true,
+      "vision": false,
+      "note": "Scientific multimodal model (Qwen3-8B base) trained with biology/chemistry data incl. sequences.",
+      "num_ctx": 16384
+    },
+    {
+      "id": "medgemma-27b",
+      "role": "consultant",
+      "tier": "default consultant",
+      "ollama": "medgemma:27b",
+      "hf": "google/medgemma-27b-text-it",
+      "size_gb": 17,
+      "context": 131072,
+      "license": "Health AI Developer Foundations terms (gated)",
+      "reasoning": false,
+      "vision": false,
+      "note": "Google medical Gemma 3. No tool calling: use as consultant, not as agent. Accept HAI-DEF terms.",
+      "num_ctx": 16384
+    },
+    {
+      "id": "medgemma1.5-4b",
+      "role": "consultant",
+      "tier": "small medical",
+      "ollama": "medgemma1.5:4b",
+      "hf": "google/medgemma-1.5-4b-it",
+      "size_gb": 3,
+      "context": 131072,
+      "license": "Health AI Developer Foundations terms (gated)",
+      "reasoning": false,
+      "vision": true,
+      "note": "Small and fast; good for quick terminology questions.",
+      "num_ctx": 16384
+    },
+    {
+      "id": "intern-s2-preview",
+      "role": "consultant/agent",
+      "tier": "vLLM only",
+      "hf": "internlm/Intern-S2-Preview-FP8",
+      "size_gb": 36,
+      "context": 262144,
+      "license": "Apache-2.0",
+      "reasoning": true,
+      "vision": true,
+      "vllm": {
+        "model": "internlm/Intern-S2-Preview-FP8",
+        "args": [
+          "--enable-auto-tool-choice",
+          "--tool-call-parser",
+          "qwen3_coder",
+          "--reasoning-parser",
+          "qwen3"
+        ],
+        "note": "card recommends vLLM nightly"
+      },
+      "note": "Science MoE (35B-A3B) continued from Qwen3.5, with tool calling: the one domain model that can also drive the harness.",
+      "num_ctx": 16384
+    },
+    {
+      "id": "biomni-r0-32b",
+      "role": "consultant",
+      "tier": "vLLM only (reference)",
+      "hf": "biomni/Biomni-R0-32B-Preview",
+      "size_gb": 33,
+      "context": 32768,
+      "license": "MIT",
+      "reasoning": true,
+      "vision": false,
+      "note": "RL-trained biomedical agent model (incl. GWAS variant prioritization tasks); designed for the Biomni code scaffold. Community FP8 build fits 48 GB.",
+      "num_ctx": 16384
+    }
+  ],
+  "sequence_models": [
+    {
+      "id": "evo2-7b",
+      "hf": "arcinstitute/evo2_7b",
+      "license": "Apache-2.0",
+      "use": "zero-shot Δlog-likelihood of ref vs alt sequence windows; 7B runs in bf16 (1B/20B/40B need FP8 on Hopper)"
+    },
+    {
+      "id": "gpn-star",
+      "hf": "songlab/gpn-star-scores",
+      "license": "MIT",
+      "use": "precomputed genome-wide SNV scores (hg38) — lookup, no GPU"
+    },
+    {
+      "id": "alphagenome",
+      "hf": "google/alphagenome-all-folds",
+      "license": "non-commercial weights; free non-commercial API",
+      "use": "variant effect on regulatory tracks (hg38), 1 Mb windows"
+    },
+    {
+      "id": "nucleotide-transformer-v3",
+      "hf": "InstaDeepAI/NTv3_650M_post",
+      "license": "non-commercial, gated",
+      "use": "MLM likelihood ratios / track predictions"
+    },
+    {
+      "id": "borzoi",
+      "hf": "johahi/borzoi-replicate-0",
+      "license": "Apache-2.0 code",
+      "use": "ref/alt RNA/DNase track deltas (hg38)"
+    },
+    {
+      "id": "enformer",
+      "hf": "EleutherAI/enformer-official-rough",
+      "license": "Apache-2.0 code",
+      "use": "ref/alt track deltas (hg38)"
+    },
+    {
+      "id": "hyenadna",
+      "hf": "LongSafari/hyenadna-large-1m-seqlen-hf",
+      "license": "BSD-3",
+      "use": "causal LLR"
+    },
+    {
+      "id": "chorus",
+      "url": "https://github.com/pinellolab/chorus",
+      "license": "MIT",
+      "use": "MCP server wrapping several sequence oracles (predict_variant_effect, fine_map_causal_variant)"
+    }
+  ]
+}

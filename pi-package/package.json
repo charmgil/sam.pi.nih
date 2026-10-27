@@ -1,0 +1,17 @@
+{
+  "name": "sam-pi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SAM: pi package for the merged GWAS + PRS harness (extension, skills, prompts)",
+  "type": "module",
+  "keywords": ["pi-package"],
+  "pi": {
+    "extensions": ["./extensions/sam/index.ts"],
+    "skills": [],
+    "prompts": []
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*"
+  }
+}

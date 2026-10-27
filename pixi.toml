@@ -1,0 +1,66 @@
+[workspace]
+name = "sam"
+description = "SAM: pi-based GWAS + PRS agent harness (runtime environments)"
+channels = ["conda-forge", "bioconda"]
+platforms = ["linux-64"]
+
+# ── default environment: everything except LDSC ──────────────────────────────
+# Python 3.12 (data handling, plots) + R 4.5 (susieR only)
+# + plink2 binary. regenie lives in its own environment (its boost 1.74
+# pin conflicts with R 4.5 libraries); it is a standalone binary.
+[dependencies]
+python = "3.12.*"
+numpy = ">=2.0,<3"
+pandas = ">=2.2,<3"
+scipy = ">=1.13"
+matplotlib-base = ">=3.9"
+pyyaml = ">=6"
+requests = ">=2.31"
+plink2 = "2.0.0a.7.8.*"
+r-base = "4.5.*"
+r-susier = "0.14.2.*"
+r-jsonlite = "*"
+htslib = ">=1.20"        # bgzip / tabix
+pytest = ">=8"
+ruff = ">=0.6"           # lint (development)
+
+# ── LDSC environment: Python 3 port of ldsc pinned with its compatible stack ─
+# PyPI ldsc 2.0.1 is a syntax-only Python 3 port of bulik/ldsc 1.0.1
+# (xrange->range, .ix->.iloc, as_matrix->to_numpy); see docs/TOOLS.md.
+# nose / pybedtools are declared by the wheel but only used by make_annot/tests.
+[feature.ldsc.dependencies]
+python = "3.10.*"
+numpy = "1.26.*"
+pandas = "1.5.*"
+scipy = "1.11.*"
+bitarray = "2.*"
+nose = "1.3.*"
+pybedtools = ">=0.9"
+
+[feature.ldsc.pypi-dependencies]
+ldsc = "==2.0.1"
+
+# ── PRS-CS environment: bioconda prscs 1.1.0 uses scipy's old numpy aliases
+# (scipy.sqrt, scipy.array, ...), removed after SciPy 1.11, so it gets its own
+# pinned stack, like ldsc.
+[feature.prscs.dependencies]
+python = "3.10.*"
+numpy = "1.26.*"
+scipy = "1.11.*"
+h5py = ">=3.9"
+prscs = "1.1.0.*"
+
+# ── agent environment: Node.js for the pi coding agent (pi itself is installed
+# with npm into .sam/pi by `./sam bootstrap`, pinned to PI_VERSION in ./sam)
+[feature.agent.dependencies]
+nodejs = "24.21.*"
+
+# ── regenie environment: standalone binary ───────────────────────────────────
+[feature.regenie.dependencies]
+regenie = "4.1.3.1.*"
+
+[environments]
+regenie = { features = ["regenie"], no-default-feature = true }
+ldsc = { features = ["ldsc"], no-default-feature = true }
+prscs = { features = ["prscs"], no-default-feature = true }
+agent = { features = ["agent"], no-default-feature = true }

@@ -1,0 +1,13 @@
+# Optional vLLM server for local models (separate from the analysis environments
+# so PyTorch/CUDA wheels never enter the main lock). Install: ./sam llm vllm-install
+# vLLM 0.31.x PyPI wheels target CUDA 13 (driver >= 580); RTX PRO Blackwell = sm_120.
+[workspace]
+name = "sam-vllm"
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[dependencies]
+python = "3.12.*"
+
+[pypi-dependencies]
+vllm = "==0.31.0"
