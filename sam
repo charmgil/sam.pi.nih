@@ -6,6 +6,7 @@
 #   ./sam status|doctor|run ... --input DIR --resource DIR   use the analysis core without an agent
 #   ./sam setup [--env E | --step S]         (re)install analysis environments
 #   ./sam llm list|pull|models-json|vllm-command|vllm-install|vllm-serve   local LLMs
+#   ./sam bench run|report [...]            local-LLM benchmark (bench/, docs/BENCHMARK.md)
 #
 # Input and resource directories are read-only; everything is written to
 # ./output of the directory you run from (override with --output).
@@ -56,7 +57,7 @@ core() {
 	samkit ${global[@]+"${global[@]}"} ${rest[@]+"${rest[@]}"}
 }
 
-usage() { sed -n '2,11p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 cmd_bootstrap() {
 	local envs="default,regenie,ldsc,prscs,agent"
@@ -148,7 +149,14 @@ cmd_agent() {
 	[ -z "$threads" ] || args+=(--sam-threads "$threads")
 	[ -z "$build" ] || args+=(--sam-build "$build")
 	mkdir -p "$PI_CODING_AGENT_DIR"
-	exec "$NODE" "$PI_JS" "${args[@]}" ${pi_args[@]+"${pi_args[@]}"}
+	# the kernel (Landlock) keeps input/resource read-only for pi and everything it starts; SAM_SANDBOX=off skips it
+	local sandbox=()
+	if [ "${SAM_SANDBOX:-}" != off ] && [ -x "$PY" ]; then
+		sandbox=("$PY" -I "$SAM_HOME/src/samkit/sandbox.py" --ro "$input" --tmpdir "$output/_tmp/agent")
+		[ -z "$resource" ] || sandbox+=(--ro "$resource")
+		sandbox+=(--)
+	fi
+	exec ${sandbox[@]+"${sandbox[@]}"} "$NODE" "$PI_JS" "${args[@]}" ${pi_args[@]+"${pi_args[@]}"}
 }
 
 cmd_llm() {
@@ -172,6 +180,7 @@ main() {
 		setup) samkit setup "$@" ;;
 		status | doctor | resources | report) core "$cmd" "$@" ;;
 		run) core "$@" ;;
+		bench) need_core; PYTHONPATH="$SAM_HOME/src" "$PY" -B "$SAM_HOME/bench/run.py" "$@" ;;
 		test)
 			need_core
 			(cd "$SAM_HOME" && PYTHONPATH="$SAM_HOME/src" "$PY" -m pytest -q -p no:cacheprovider tests "$@")

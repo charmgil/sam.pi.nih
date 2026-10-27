@@ -35,7 +35,7 @@ pi 확장은 코어를 하위 프로세스(`python -m samkit ...`)로 부르고,
 | plots / peaks | results | png / `loci/<p>/peaks.tsv` | step2 완료 |
 | ldsc | results | `ldsc/<p>/` | 22개 상염색체 모두, LDSC 패널 22개 모두 |
 | regional / finemap | results, locus | `loci/<p>/chr<C>_<POS>/` | locus가 결과에 있는 변이 |
-| prs-target | 유전형 bim, dbSNP ID 매핑 | `prs/_target/<g>/` | — |
+| prs-target | 유전형 bim, dbSNP ID 매핑 | `prs/_target/<g>/` | 대상 변이 ID가 대부분 rsID이거나 dbsnp_map 리소스가 있음 |
 | prs-score | weight 파일 | `prs/<name>/` | 매칭 변이 ≥ 1 |
 | prs-prscs | 외부 요약통계, n_gwas, LD ref | `prs/<name>/` | 하네스 GWAS 결과 아님, 부분 염색체는 승인 |
 
@@ -119,10 +119,12 @@ PRS 쪽(analysis.md에서 지적):
 
 ## 6. 한계와 남은 일
 
-- 가드는 실수 방지용 패턴 검사입니다. 확실한 격리가 필요하면 컨테이너나 별도 계정으로 실행하세요.
+- 가드는 패턴 검사입니다. 입력·리소스 읽기 전용은 커널(Landlock)이 보장하지만, 그 밖의 규칙(설치·다운로드 금지, privacy)은
+  가드만 지킵니다. 확실한 격리가 필요하면 컨테이너나 별도 계정으로 실행하세요. Landlock의 한계는 USAGE.md 4절.
 - LDSC Python 3 포팅과 원본 py2.7의 수치 대조는 하지 않았습니다(TOOLS.md 1.3).
 - vLLM은 설정·명령까지 준비했고 설치·구동은 미검증입니다.
 - 클라우드 모델(Claude, ChatGPT)로의 실제 대화는 계정 로그인이 필요해 검증하지 않았습니다.
-- 모델 비교 벤치(자동 채점)는 이번 범위에서 제외했습니다. `--mode json` 출력으로 나중에 붙일 수 있습니다.
+- 로컬 모델 비교 벤치마크(자동 채점)는 [BENCHMARK.md](BENCHMARK.md). 2026-10-28 실행에서 가드 우회(셸 변수 경로)로 입력 파일이
+  덮어써진 사례가 나와 커널 층을 추가했습니다(REVIEW-2026-10-27.md R40).
 - DNA 서열 모델은 문서로만 정리했습니다(MODELS.md 5절).
 - 자체 GWAS → PRS 경로(표본 분할 등)는 열지 않았습니다.

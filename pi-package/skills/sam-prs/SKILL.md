@@ -9,7 +9,7 @@ description: Polygenic risk scores on the SAM target genotypes — from existing
 
 | The user has / wants | Route |
 |---|---|
-| a ready-made weight file (e.g. `HTN_PRS_weight.txt.gz`) | `sam_prs` method=`weights` (fast, ~1 min) |
+| a ready-made weight file (e.g. `HTN_PRS_weight.txt.gz`) | `sam_prs` method=`weights` (fast, seconds) |
 | GWAS summary statistics (e.g. `phenocode-KBA_187K_HTN.tsv.gz`) | `sam_prs` method=`prscs` (PRS-CS, long) |
 | neither | find them on KNIH PheWeb with `sam_pheweb` |
 
@@ -22,6 +22,8 @@ earlier are under `output/downloads/pheweb/` and can be passed by that path.
    KBA_HLA, KBA_validated) and PRS weights as PRS or lcPRS. **Show the options and ask the user.**
 3. `sam_pheweb` action=`download` with the chosen code; the user approves URL and size.
    Downloads record the GWAS N, so PRS-CS can use it automatically.
+   The KNIH server is slow (tens of KB/s); if a download is interrupted or fails, calling `download`
+   again with the same code resumes it from the partial file.
 
 ## PRS-CS specifics
 - `n_gwas` is required; PheWeb downloads provide it. For other files ask the user.

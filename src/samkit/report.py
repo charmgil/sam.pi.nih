@@ -47,4 +47,4 @@ def build(ctx: Context) -> dict:
         lines += ["", f"<sub>tools: {tools}</sub>", ""]
     out = ctx.out("report.md")
     out.write_text("\n".join(lines), encoding="utf-8")
-    return {"ok": True, "report": "output/report.md", "n_steps": len(entries)}
+    return {"ok": True, "report": ctx.display(out), "n_steps": len(entries)}

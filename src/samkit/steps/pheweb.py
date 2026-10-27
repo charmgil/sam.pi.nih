@@ -96,8 +96,20 @@ def head(ctx: Context, code: str) -> dict:
     r = requests.head(e["url"], timeout=30, allow_redirects=True)
     size = int(r.headers.get("Content-Length", 0)) or None
     dest = _dest(ctx, e)
+    part = dest.with_name(dest.name + ".part")
     return {"ok": True, **e, "size_bytes": size, "size_mb": round(size / 1e6, 1) if size else None,
-            "destination": ctx.display(dest), "exists": dest.exists()}
+            "resumable": _probe_ranges(e["url"]),
+            "destination": ctx.display(dest), "exists": dest.exists(),
+            "partial_mb": round(part.stat().st_size / 1e6, 1) if part.exists() else None}
+
+
+def _probe_ranges(url: str) -> bool | None:
+    """Whether the server honours Range requests (the KNIH server does, without Accept-Ranges)."""
+    try:
+        with requests.get(url, headers={"Range": "bytes=0-0"}, stream=True, timeout=30) as r:
+            return r.status_code == 206
+    except requests.RequestException:
+        return None
 
 
 def _dest(ctx: Context, e: dict) -> Path:
@@ -105,34 +117,97 @@ def _dest(ctx: Context, e: dict) -> Path:
     return ctx.out("downloads", "pheweb", fname)
 
 
+RETRIES = 5
+NET_ERRORS = (requests.ConnectionError, requests.Timeout, requests.exceptions.ChunkedEncodingError)
+
+
+def _validator(r: requests.Response) -> str | None:
+    """A strong validator for If-Range (weak ETags are not allowed there)."""
+    etag = r.headers.get("ETag")
+    if etag and not etag.startswith("W/"):
+        return etag
+    return r.headers.get("Last-Modified")
+
+
+def fetch(url: str, part: Path, log) -> tuple[int, bool]:
+    """Download url into part, resuming an earlier partial download with an HTTP Range request.
+
+    <part>.json keeps the URL, size and validator of the first response. On resume the validator
+    is sent as If-Range, so a file that changed on the server comes back whole (200) and is
+    fetched again from the start. Network errors are retried, each time from the bytes already
+    on disk; if every retry fails the partial file is kept for the next call.
+    Returns (size, resumed).
+    """
+    state_f = part.with_name(part.name + ".json")
+    state = json.loads(state_f.read_text()) if state_f.exists() else {}
+    if state.get("url") != url or not part.exists():
+        state = {}
+    resumed = False
+    for attempt in range(1, RETRIES + 1):
+        have = part.stat().st_size if state and part.exists() else 0
+        headers = {"Range": f"bytes={have}-"} if have else {}
+        if have and state.get("validator"):
+            headers["If-Range"] = state["validator"]
+        try:
+            with requests.get(url, stream=True, timeout=60, headers=headers) as r:
+                if r.status_code == 416 and have and have == state.get("total"):
+                    return have, resumed
+                if r.status_code == 416:  # partial file larger than the remote file: start over
+                    part.unlink(missing_ok=True)
+                    state = {}
+                    continue
+                r.raise_for_status()
+                m = re.fullmatch(r"bytes (\d+)-\d+/(\d+|\*)", r.headers.get("Content-Range", ""))
+                if r.status_code == 206 and m and int(m.group(1)) == have and (
+                        m.group(2) == "*" or state.get("total") in (None, int(m.group(2)))):
+                    mode, resumed = "ab", True
+                    log.info(f"  resuming at {have / 1e6:.0f} MB")
+                else:  # full body: first attempt, no range support, or the file changed
+                    if have:
+                        log.info("  server sent the whole file (changed or no range support); starting over")
+                    have, mode = 0, "wb"
+                    state = {"url": url, "total": int(r.headers.get("Content-Length", 0)) or None,
+                             "validator": _validator(r)}
+                    state_f.write_text(json.dumps(state))
+                total, got = state.get("total"), have
+                with open(part, mode) as fh:
+                    for chunk in r.iter_content(1 << 20):
+                        fh.write(chunk)
+                        got += len(chunk)
+                        if total and got % (50 << 20) < (1 << 20):
+                            log.info(f"  {got / 1e6:.0f} / {total / 1e6:.0f} MB")
+            if not total or got == total:
+                state_f.unlink(missing_ok=True)
+                return got, resumed
+            log.info(f"  WARNING: connection closed at {got / 1e6:.0f} of {total / 1e6:.0f} MB; resuming")
+        except NET_ERRORS as exc:
+            log.info(f"  WARNING: network error ({exc.__class__.__name__}), attempt {attempt}/{RETRIES}")
+        time.sleep(min(60, 5 * attempt))
+    done = part.stat().st_size if part.exists() else 0
+    raise SamError(f"download interrupted after {RETRIES} attempts ({done / 1e6:.0f} MB kept)",
+                   hint="run the same download again; it resumes from the partial file")
+
+
 def download(ctx: Context, code: str) -> dict:
     e = _entry(ctx, code)
     dest = _dest(ctx, e)
     run = StepRun(ctx, "pheweb-download", code, {"url": e["url"]}, ["python"])
+    resumed = False
     if dest.exists() and dest.with_name(dest.name + ".meta.json").exists():
         run.log.info(f"already downloaded: {dest}")
     else:
-        tmp = dest.with_name(dest.name + ".part")
+        part = dest.with_name(dest.name + ".part")
+        got, resumed = fetch(e["url"], part, run.log)
         h = hashlib.sha256()
-        got = 0
-        with requests.get(e["url"], stream=True, timeout=60) as r:
-            r.raise_for_status()
-            total = int(r.headers.get("Content-Length", 0))
-            with open(tmp, "wb") as fh:
-                for chunk in r.iter_content(1 << 20):
-                    fh.write(chunk)
-                    h.update(chunk)
-                    got += len(chunk)
-                    if total and got % (50 << 20) < (1 << 20):
-                        run.log.info(f"  {got / 1e6:.0f} / {total / 1e6:.0f} MB")
-        if total and got != total:
-            tmp.unlink()
-            raise SamError(f"incomplete download ({got} of {total} bytes)")
-        tmp.rename(dest)
-        meta = {**e, "downloaded": time.strftime("%Y-%m-%dT%H:%M:%S"), "bytes": got, "sha256": h.hexdigest()}
+        with open(part, "rb") as fh:
+            for chunk in iter(lambda: fh.read(1 << 20), b""):
+                h.update(chunk)
+        part.rename(dest)
+        meta = {**e, "downloaded": time.strftime("%Y-%m-%dT%H:%M:%S"), "bytes": got, "sha256": h.hexdigest(),
+                "resumed": resumed}
         dest.with_name(dest.name + ".meta.json").write_text(json.dumps(meta, indent=2))
     summary = {"code": code, "phenotype": e["phenotype"], "cohort": e["cohort"], "kind": e["kind"],
                "n_gwas": e["n_gwas"], "file": ctx.display(dest),
-               "size_mb": round(dest.stat().st_size / 1e6, 1)}
+               "size_mb": round(dest.stat().st_size / 1e6, 1), "resumed": resumed}
     nxt = ["prs-prscs"] if e["kind"] == "sumstats" else ["prs-score"]
     return run.finish(summary, {"file": dest}, [], nxt)

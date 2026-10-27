@@ -36,7 +36,7 @@ Each analysis is a separate request. Run only the one asked for, then report and
 - `locus` = rank from `sam_peaks` (e.g. "1"), "CHR:POS" (hg19), or the variant ID. Use the locus the
   user chose; if they did not choose, show the peaks and ask.
 - LD r² is computed in the GWAS samples; grey points have no LD value.
-- The gene track comes from Ensembl GRCh37 (needs internet; the tool warns if missing).
+- The gene track comes from Ensembl (GRCh37 server for hg19; needs internet; the tool warns if missing).
 
 ## Fine-mapping — `sam_finemap`
 - Use the same locus as the regional plot unless the user asks otherwise.

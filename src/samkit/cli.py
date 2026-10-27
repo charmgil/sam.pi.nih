@@ -16,12 +16,13 @@ import sys
 import traceback
 from pathlib import Path
 
-from samkit import __version__, inventory, manifest, resources, tools
+from samkit import __version__, inventory, manifest, resources, sandbox, tools
 from samkit.context import Context, SamError, harness_home
 
 STEP_RESOURCES = {
     "ldsc": [("ldsc_ref", True), ("ldsc_weights", True), ("dbsnp_map|pos2rsid", True)],
     "regional": [("genetic_map", False)],
+    "finemap": [("genetic_map", False)],  # recombination track of regional_susie.png
     "prs": [("dbsnp_map", False), ("prscs_ld", False)],
 }
 
@@ -71,7 +72,7 @@ def cmd_doctor(a) -> dict:
         ready = all(v != "missing" for v in vers.values()) and all(r["found"] for r in res if r["required"])
         report[s] = {"ready": ready, "tools": vers, "resources": res,
                      "install_env": tools.ENV_OF_STEP[s]}
-    return {"ok": True, "steps": report}
+    return {"ok": True, "steps": report, "read_only_enforcement": sandbox.status()}
 
 
 def cmd_setup(a) -> dict:
@@ -213,7 +214,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--step", action="append", choices=list(tools.STEP_TOOLS))
     s.set_defaults(fn=cmd_doctor)
     s = sub.add_parser("setup", help="install pixi environments")
-    s.add_argument("--env", help="comma-separated: default,regenie,ldsc")
+    s.add_argument("--env", help="comma-separated: default,regenie,ldsc,prscs (default: default,regenie,ldsc)")
     s.add_argument("--step", action="append", choices=list(tools.STEP_TOOLS))
     s.set_defaults(fn=cmd_setup)
     s = sub.add_parser("resources", help="list or prepare reference resources")

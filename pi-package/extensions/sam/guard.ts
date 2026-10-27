@@ -1,9 +1,12 @@
 /**
  * Guards for pi's built-in tools (bash, read, write, edit, grep).
  *
- * These are mistake guards, not a security boundary: a determined command can
- * always evade pattern checks. They enforce the harness rules in code so that
- * every model (cloud or local) gets the same limits:
+ * These are mistake guards, not a security boundary: a command can evade pattern
+ * checks (a local model did, with the path in a shell variable). Read-only input/
+ * resource directories are therefore also enforced by the kernel (Landlock, see
+ * src/samkit/sandbox.py); the checks here refuse early and explain why. They
+ * enforce the harness rules in code so that every model (cloud or local) gets the
+ * same limits:
  *   - input/resource directories are read-only
  *   - files are written only inside the working directory or the output directory
  *   - installs and file downloads go through sam_setup / sam_pheweb (with approval)

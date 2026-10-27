@@ -4,7 +4,7 @@
 
 | 항목 | 내용 |
 |---|---|
-| OS | Linux x86_64 (검증: Debian 13). macOS arm64는 `./sam bootstrap`이 지원하지만 미검증 |
+| OS | Linux x86_64 (검증: Debian 13, 커널 6.12). macOS arm64는 `./sam bootstrap`이 지원하지만 미검증. 입력·리소스의 커널 수준 읽기 전용은 Linux 5.13+ Landlock 필요(없으면 가드만, 3절) |
 | 필수 명령 | `bash`, `curl`, `tar`, `sha256sum` |
 | 디스크 | 하네스 도구 약 3.5 GB. 분석 출력은 데이터에 따라 다름(14K 표본 예: 약 5 GB, 대부분 PRS-CS LD 캐시) |
 | 메모리/CPU | regenie step 1이 가장 무거움. 14K × 60만 변이 기준 16코어로 약 5분 |
@@ -44,7 +44,7 @@ pi 버전은 `SAM_PI_VERSION=1.4.0 ./sam bootstrap --envs agent`처럼 지정합
 설치 확인:
 
 ```bash
-./sam test                                                        # 단위 테스트 (Python 21, 가드 14)
+./sam test                                                        # 단위 테스트 (Python 39, 가드 14)
 ./sam doctor --input sam-data/input --resource sam-data/resource  # 단계별 준비 상태
 ```
 
@@ -58,7 +58,7 @@ pi 버전은 `SAM_PI_VERSION=1.4.0 ./sam bootstrap --envs agent`처럼 지정합
 | 파일 | 예 | 용도 |
 |---|---|---|
 | PLINK 파일셋 (bed/bim/fam 또는 pgen/pvar/psam) | `KBAv2.0AB_14K_COMMON.*` | GWAS, LD, PRS 대상 |
-| VCF(.vcf.gz) | 임퓨테이션 결과 | PLINK 파일셋이 없을 때만 pgen으로 변환(R2 ≥ 0.8) |
+| VCF(.vcf.gz) | 임퓨테이션 결과 | `--vcf`(에이전트는 `vcf`)로 지정했을 때 pgen으로 변환(R2 ≥ 0.8). 자동 변환은 없고, 같은 이름으로 이미 변환된 파일셋이 있으면 재사용 |
 | 표현형 표 (ID 열 + 표현형/공변량 열) | `KBAv2.0AB_14K_HDL.txt` (`ID SEX AGE HDL`) | GWAS. FID/IID가 없어도 ID 열로 자동 매칭 |
 | PheWeb 형식 요약통계 | `phenocode-KBA_187K_HTN.tsv.gz` | PRS-CS 입력 |
 | PRS weight | `HTN_PRS_weight.txt.gz` (`CHR SNP BP A1 A2 BETA`, 헤더 없음) | PRS 점수 |
@@ -75,8 +75,9 @@ pi 버전은 `SAM_PI_VERSION=1.4.0 ./sam bootstrap --envs agent`처럼 지정합
 인식 결과는 `./sam status --input ... --resource ...`의 `resources.components`에서 볼 수 있습니다.
 출처는 [TOOLS.md](TOOLS.md#2-참조-리소스)에 있습니다.
 
-> 데이터를 OS 수준에서도 보호하고 싶다면 소유자가 직접 `chmod -R a-w sam-data/input sam-data/resource`를
-> 해 두세요. 하네스는 이 폴더들에 쓰지 않지만, 가드는 실수 방지용이지 보안 경계가 아닙니다.
+> `./sam agent`는 Linux Landlock으로 입력·리소스 폴더를 커널 수준의 읽기 전용으로 만들고 pi를 시작합니다(Linux 5.13+,
+> `./sam doctor`의 `read_only_enforcement`로 확인). Landlock이 없는 환경(macOS, 오래된 커널)에서는 소유자가 직접
+> `chmod -R a-w sam-data/input sam-data/resource`를 해 두세요. 가드만으로는 셸 변수 속 경로 같은 쓰기를 막지 못합니다.
 
 ## 4. 모델 연결
 

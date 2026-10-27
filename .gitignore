@@ -4,6 +4,7 @@
 .pi-agent/
 node_modules
 models/vllm/.pixi/
+bench/hf/.pixi/
 
 # data never goes into git
 sam-data/

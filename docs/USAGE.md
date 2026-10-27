@@ -85,19 +85,31 @@ pi 하단 상태줄에 `SAM ▸ <입력 폴더> │ privacy on/off`가 표시됩
 
 | 규칙 | 어디서 |
 |---|---|
-| 입력·리소스 폴더에 쓰기 금지 (도구, bash, write/edit 모두) | `samkit.context`, 확장 가드 |
+| 입력·리소스 폴더에 쓰기 금지 (도구, bash, write/edit, 스크립트 모두) | 커널(Landlock, `samkit/sandbox.py`), `samkit.context`, 확장 가드 |
 | 실행 디렉토리 밖에 쓰기 금지 | 확장 가드 |
 | bash로 설치(pip/conda/apt/npm/git clone/curl\|sh)·파일 다운로드·sudo 금지 → `sam_setup`/`sam_pheweb` 사용 | 확장 가드 |
 | 설치·다운로드·부분 PRS는 사용자 승인 | 확장 도구 |
 | 개인정보 모드: 개인 단위 파일을 read/grep/bash로 읽기 금지 (ls, wc -l, head -1은 허용) | 확장 가드 |
-| 부분 유전체 GWAS로 LDSC 금지 | `steps/ldsc.py` |
+| 부분 유전체 GWAS로 LDSC 금지 (에이전트는 우회 불가, CLI는 `--allow-partial`로 허용) | `steps/ldsc.py` |
 | PRS-CS가 일부 염색체만 쓰면 승인 필요, 결과에 "partial" 표시 | `steps/prs.py` + 확장 |
 | 이 하네스의 GWAS 결과를 PRS-CS 입력으로 쓰기 금지 (표본 중복) | `steps/prs.py` |
 | PLINK 파일셋이 있으면 VCF 재변환 안 함 | `steps/gwas.py` |
 | 한 출력 폴더는 한 데이터셋에만 (`sam.json`) | `samkit.context` |
 | step2 전 step1, regional/finemap 전 GWAS 결과 필수 | 각 단계 |
 
-가드는 실수 방지용입니다. 작정하고 우회하는 명령까지 막는 보안 경계는 아닙니다.
+가드는 명령 패턴 검사라서 경로를 셸 변수에 담거나 스크립트 안에서 만든 쓰기는 보지 못합니다(2026-10-28 벤치마크에서
+로컬 모델이 `INFILE=...; awk ... > "$INFILE.tmp" && mv ...`로 입력 파일을 실제로 덮어썼습니다). 그래서 `./sam agent`는
+pi를 **Linux Landlock** 아래에서 시작합니다. pi와 pi가 띄우는 모든 프로세스(bash, python, R, sam 도구)는 입력·리소스 폴더에서
+파일 생성·수정·이름 변경·삭제·truncate를 할 수 없고, 커널이 `Permission denied`로 거절합니다. 가드는 그 앞에서 먼저 거절하고
+이유를 알려 주는 역할입니다.
+
+- 상태 확인: pi 안 `/sam`의 `read-only:` 줄, `./sam doctor`의 `read_only_enforcement`
+- Landlock이 없으면(macOS, Linux 5.13 미만, LSM 목록에 landlock 없음) 가드만 동작합니다. 시작할 때 경고가 뜹니다.
+- 범위 밖: 권한·시간 변경(chmod, chown, touch), 같은 파일의 다른 마운트 경로나 폴더 밖 하드 링크
+- 입력 폴더가 실행 폴더 안에 있으면(예: `./sam-data/input`) 실행 폴더 **바로 아래**에는 새 파일을 만들 수 없습니다.
+  `output/` 등 기존 하위 폴더는 그대로 쓸 수 있습니다. 임시 폴더가 그런 상위 폴더면 `TMPDIR`은 `output/_tmp/agent`로 바뀝니다.
+- 세션 중 `/sam-data`로 바꾼 폴더는 가드만 적용됩니다(경고 표시). 커널 보호를 받으려면 `--input`으로 다시 시작하세요.
+- 끄기: `SAM_SANDBOX=off ./sam agent ...`
 
 ### 개인정보 보호
 
@@ -119,16 +131,18 @@ output/
 ├── manifest.jsonl                단계마다 1줄: 파라미터, 입력 파일 지문, 도구 버전, 요약, 소요 시간, 로그 경로
 ├── report.md                     sam_report 결과
 ├── logs/                         단계별 로그 (외부 도구 출력 전부)
+├── genotype/                     VCF를 변환한 pgen (`--vcf`를 쓴 경우)
 ├── gwas/_qc/<유전형>/            표본 QC, step1/PCA 변이 집합, PCA (표현형 간 공유)
-├── gwas/<표현형>/                pheno.tsv, step1/, step2/, results.tsv.gz, summary.json
+├── gwas/<표현형>/                setup.json, prepare.json, pheno.tsv, step1/, step2/, results.tsv.gz, summary.json
 ├── plots/<표현형>/               manhattan.png, qq.png
 ├── ldsc/<표현형>/                h2.log, munged.sumstats.gz, ldsc_regression.png, summary.json
 ├── loci/<표현형>/peaks.tsv
 ├── loci/<표현형>/chr11_116662579/  regional.png, susie.png, regional_susie.png, susie_pip.tsv, susie_cs.tsv, ...
 ├── prs/_target/<유전형>/         rsID 매핑 (대상 유전형 파일은 다시 쓰지 않음)
 ├── prs/<이름>/                   score.sscore(개인별), weights, summary.json
-├── downloads/pheweb/             PheWeb에서 받은 파일 + .meta.json (GWAS N 등)
-├── _cache/                       리소스 압축 해제분, 유전자 트랙, PheWeb 목록
+├── downloads/pheweb/             PheWeb에서 받은 파일 + .meta.json (GWAS N 등). 받는 중엔 .part(+.part.json)
+├── _cache/                       리소스 압축 해제분, ldsc_base(단변량 LD score), 유전자 트랙, PheWeb 목록, matplotlib
+├── _tmp/                         외부 도구 임시 파일 (TMPDIR)
 └── .pi-sessions/                 pi 대화 기록
 ```
 
@@ -185,7 +199,10 @@ $S report --input $D/input
 | `required tools are not installed` | `./sam setup --step <단계>` 또는 에이전트에 설치 요청(승인) |
 | `resource not found: ldsc_ref` 등 | 리소스 폴더에 해당 파일/압축이 없음. [TOOLS.md](TOOLS.md#2-참조-리소스) |
 | SAM guard 경고로 명령 차단 | 의도된 동작. 분석은 sam 도구로, 설치는 `sam_setup`, 다운로드는 `sam_pheweb` |
-| regional plot에 유전자 트랙 없음 | Ensembl GRCh37 REST 접속 실패. 그림은 그대로 생성, 경고 표시 |
+| 입력·리소스 폴더 쓰기가 `Permission denied` | 의도된 동작(커널 읽기 전용). 결과는 `output/` 아래에 쓰기 |
+| 실행 폴더 바로 아래에 새 파일을 만들 때 `Permission denied` | 입력 폴더가 실행 폴더 안에 있을 때의 Landlock 제약. `output/` 아래에 쓰거나 입력 폴더를 실행 폴더 밖에 두기 |
+| PheWeb 다운로드가 중간에 끊김 | 서버가 느림(수십 KB/s). 같은 코드로 다시 받으면 `.part` 파일에서 이어 받음(`samkit pheweb head`가 `partial_mb` 표시) |
+| regional plot에 유전자 트랙 없음 | Ensembl REST 접속 실패(hg19는 grch37.rest.ensembl.org, hg38은 rest.ensembl.org). 그림은 그대로 생성, 경고 표시 |
 | 로컬 모델이 도구를 잘 안 씀 | 더 큰 모델(`qwen3.6-35b-a3b`, `qwen3.8-27b`)로 바꾸거나 `/gwas` 같은 템플릿 사용 |
 | `pi -p`가 끝나지 않음 | `< /dev/null` 누락 |
 | 단계 실패 상세 | 오류의 `hint`와 `output/logs/<시각>_<단계>.log` |

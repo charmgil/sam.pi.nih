@@ -146,7 +146,8 @@ def resolve_genotype(ctx: Context, name: str | None) -> dict:
         if not match:
             raise SamError(f"genotype fileset not found: {name}",
                            hint="available: " + ", ".join(g["name"] for g in sets) if sets else
-                           "no PLINK filesets; convert a VCF first (sam run gwas-prepare --vcf ...)")
+                           "no PLINK filesets; convert a VCF first (sam_gwas stage=prepare with vcf=..., "
+                           "or ./sam run gwas prepare --vcf ...)")
         return match[0]
     if len(sets) == 1:
         return sets[0]

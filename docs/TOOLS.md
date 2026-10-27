@@ -88,8 +88,8 @@
 | plots, peaks | Python | — | — |
 | ldsc | Python, ldsc | ldsc_ref, ldsc_weights, dbsnp_map 또는 pos2rsid | — |
 | regional | plink2, Python | genetic_map (없으면 재조합률 생략) | Ensembl (없으면 유전자 트랙 생략) |
-| finemap | plink2, R + susieR | — | (regional 그림용 Ensembl) |
-| prs (weights) | plink2, Python | dbsnp_map (대상 ID가 rsID가 아니면) | — |
+| finemap | plink2, R + susieR | genetic_map (`regional_susie.png`의 재조합률; 없으면 생략) | (그림용 Ensembl) |
+| prs (weights) | plink2, Python (`doctor --step prs`는 PRS-CS 환경까지 함께 점검) | dbsnp_map (대상 ID가 rsID가 아니면) | — |
 | prs (prscs) | plink2, PRS-CS | dbsnp_map, prscs_ld | — |
 | pheweb | Python | — | KNIH PheWeb |
 

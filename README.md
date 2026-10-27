@@ -61,10 +61,12 @@ cd /projects/NIH/sam.pi.nih
 |---|---|
 | [docs/SETUP.md](docs/SETUP.md) | 준비: 설치, 계정·모델 연결, 데이터 배치, 다른 서버로 옮기기 |
 | [docs/USAGE.md](docs/USAGE.md) | 작동: 에이전트 사용 예, 명령, 출력 구조, 비대화형 실행, 문제 해결 |
+| [docs/WORKFLOW.md](docs/WORKFLOW.md) | 워크플로우: task별 역할, 입력·출력, 외부 프로그램, 흐름도 |
 | [docs/TOOLS.md](docs/TOOLS.md) | 필요한 도구와 리소스 목록 (버전, 출처, 어느 단계에 필요한지) |
 | [docs/MODELS.md](docs/MODELS.md) | LLM 카탈로그: 클라우드, 로컬 벤치마크 상위 모델, 유전체 특화 모델 |
 | [docs/DESIGN.md](docs/DESIGN.md) | 구조와 설계 결정, 이전 구현의 문제(I-1~I-28 등)를 어떻게 처리했는지 |
-| [docs/REVIEW-2026-10-27.md](docs/REVIEW-2026-10-27.md) | 디버그·검증 리포트: 이슈 38건과 조치, 외부 기준(KBA 187K) 비교, 로컬 모델 시험 |
+| [docs/REVIEW-2026-10-27.md](docs/REVIEW-2026-10-27.md) | 디버그·검증 리포트: 이슈와 조치, 외부 기준(KBA 187K) 비교, 로컬 모델 시험 |
+| [docs/BENCHMARK.md](docs/BENCHMARK.md) | 로컬 LLM 벤치마크: 설계, 대상 모델, 실행 방법, 결과 위치 |
 
 ## 폴더 구조
 
@@ -76,6 +78,7 @@ sam.pi.nih/
 │   ├── steps/              gwas, plots(+peaks), ldsc, regional, finemap, prs, pheweb
 │   ├── r/susie.R           susieR 계산만 (설정 파일을 읽지 않음)
 │   ├── context.py          입력·리소스 읽기 전용, 출력 경로 강제
+│   ├── sandbox.py          에이전트 실행 시 입력·리소스를 커널(Landlock) 수준 읽기 전용으로
 │   ├── resources.py        리소스 폴더/압축 파일 인식, 필요한 파일만 캐시로 추출
 │   └── llm.py              로컬 모델 관리 (Ollama, vLLM)
 ├── pi-package/             pi 패키지
@@ -84,6 +87,7 @@ sam.pi.nih/
 │   ├── skills/             sam-setup, sam-gwas, sam-post-gwas, sam-prs
 │   └── prompts/            /gwas, /post-gwas, /locus, /prs, /sam-report
 ├── models/                 catalog.json (모델 목록), vllm/pixi.toml (선택 설치)
+├── bench/                  로컬 LLM 벤치마크 (시나리오, 문항, 채점, 보고서 템플릿)
 ├── tests/                  Python 단위 테스트 (pi-package/tests: 가드 테스트)
 ├── docs/                   문서
 └── arxiv/                  이전 구현, 비평 노트, 슬라이드 (참고용)

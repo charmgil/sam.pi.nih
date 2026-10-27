@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import { Type } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
-import { checkBash, checkReadPath, checkSearchPath, checkWritePath, type GuardConfig } from "./guard.ts";
+import { checkBash, checkReadPath, checkSearchPath, checkWritePath, type GuardConfig, within } from "./guard.ts";
 import { runSamkit, type SamConfig, type SamResult, stopAll } from "./runner.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -22,6 +22,21 @@ const PKG = path.join(HOME, "pi-package");
 const LOCAL_PROVIDERS = new Set(["ollama", "vllm", "llama-cpp", "llamacpp", "llama.cpp", "lmstudio", "sglang", "local"]);
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]", "0.0.0.0"]);
 const MAX_RESULT_CHARS = 14000;
+/** Directories the kernel keeps read-only for this whole process tree (src/samkit/sandbox.py, started by ./sam agent). */
+const KERNEL_RO = (process.env.SAM_SANDBOX ?? "").startsWith("landlock")
+	? (process.env.SAM_SANDBOX_RO ?? "").split(path.delimiter).filter(Boolean)
+	: [];
+const kernelReadOnly = (dir?: string): boolean => {
+	if (!dir) return true;
+	let real = path.resolve(dir);
+	try {
+		real = fs.realpathSync(real);
+	} catch {}
+	return KERNEL_RO.some((d) => within(real, d));
+};
+const READ_ONLY_NOTE =
+	"kernel protection covers only the directories given to ./sam agent at start; restart with --input/--resource " +
+	"for it (the command checks still apply)";
 
 type Ctx = ExtensionContext;
 
@@ -158,6 +173,8 @@ export default function sam(pi: ExtensionAPI) {
 		if (ctx.hasUI) {
 			for (const w of configWarnings) ctx.ui.notify(`SAM: ${w}`, "warning");
 			if (!cfg.input) ctx.ui.notify("SAM: input directory not set. Use /sam-data <input-dir> [resource-dir].", "warning");
+			if (process.env.SAM_SANDBOX === "none")
+				ctx.ui.notify("SAM: Landlock is not available here; input/resource are protected by command checks only.", "warning");
 			if (cloudBlocked(ctx)) ctx.ui.notify(TAINT_MSG, "error");
 		}
 	});
@@ -204,6 +221,9 @@ export default function sam(pi: ExtensionAPI) {
 			`- output directory: ${cfg.output}`,
 			`- privacy mode: ${privacyActive(ctx) ? "ON — individual-level files are blocked for you" : cfg.privacy === "off" ? "off (turned off by the user)" : "off (local model)"}`,
 			`- approvals (installs, downloads, partial PRS): ${cfg.approve}${cfg.approve === "ask" && !ctx.hasUI ? " (no UI: behaves as deny)" : ""}`,
+			...(KERNEL_RO.length && kernelReadOnly(cfg.input) && kernelReadOnly(cfg.resource)
+				? ["- the operating system refuses writes into the input/resource directories (Permission denied); do not look for another way, write under the output directory"]
+				: []),
 		].join("\n");
 		event.systemPromptOptions.sections.sam_harness = `${rules}\n\n${runtime}`;
 	});
@@ -318,7 +338,8 @@ export default function sam(pi: ExtensionAPI) {
 			steps: Type.Array(oneOf("step", ["gwas", "plots", "peaks", "ldsc", "regional", "finemap", "prs", "pheweb"] as const)),
 		}),
 		async execute(_id, p, signal, onUpdate, ctx) {
-			return call(["doctor", ...p.steps.flatMap((s) => ["--step", s])], signal, onUpdate, ctx);
+			// tools and resources only: works before /sam-data sets an input directory
+			return call(["doctor", ...p.steps.flatMap((s) => ["--step", s])], signal, onUpdate, ctx, { needsInput: false });
 		},
 	});
 
@@ -474,7 +495,8 @@ export default function sam(pi: ExtensionAPI) {
 		description:
 			"KNIH PheWeb (Korean GWAS summary statistics and PRS weights). action=search: find phenotypes by name/code across " +
 			"cohorts (KBA+BBJ, KBA_126K, KBA_187K, ...) and PRS weights; returns codes and GWAS N. action=download: download one " +
-			"code into output/downloads/pheweb (asks the user, showing URL and size).",
+			"code into output/downloads/pheweb (asks the user, showing URL and size). An interrupted download resumes from " +
+			"the partial file when the same code is downloaded again.",
 		promptSnippet: "sam_pheweb — search/download KNIH PheWeb sumstats or PRS weights",
 		parameters: Type.Object({
 			action: oneOf("action", ["search", "download"] as const),
@@ -509,7 +531,7 @@ export default function sam(pi: ExtensionAPI) {
 		description:
 			"Polygenic risk scores on the target genotypes (plink2 --score). method=weights: score with an existing weight file " +
 			"(e.g. KNIH PheWeb *_PRS_weight). method=prscs: build weights with PRS-CS from EXTERNAL GWAS summary statistics " +
-			"(PheWeb format) and an LD reference, then score. Target variants are linked to rsIDs and alleles are checked " +
+			"(PheWeb format, or columns SNP A1 A2 BETA with SE or P) and an LD reference, then score. Target variants are linked to rsIDs and alleles are checked " +
 			"automatically. Returns match rates, chromosomes covered and the score distribution (no individual scores). " +
 			"Results from this harness's own GWAS are not accepted as PRS-CS input.",
 		promptSnippet: "sam_prs — PRS from weights or PRS-CS (external sumstats)",
@@ -646,6 +668,7 @@ export default function sam(pi: ExtensionAPI) {
 					`privacy:   ${cfg.privacy} → ${privacyActive(ctx) ? "on" : "off"} for ${ctx.model?.provider ?? "?"}/${ctx.model?.id ?? "?"}`,
 					`approvals: ${cfg.approve}`,
 					`consultant: ${cfg.consultant ?? "(none)"}`,
+					`read-only: ${KERNEL_RO.length ? (kernelReadOnly(cfg.input) && kernelReadOnly(cfg.resource) ? "kernel (Landlock) + command checks" : `command checks; ${READ_ONLY_NOTE}`) : "command checks only"}`,
 				].join("\n"),
 				"info",
 			);
@@ -678,6 +701,8 @@ export default function sam(pi: ExtensionAPI) {
 			exportEnv();
 			updateStatus(ctx);
 			ctx.ui.notify(`SAM data: input=${cfg.input}${cfg.resource ? ` resource=${cfg.resource}` : ""}`, "info");
+			if (KERNEL_RO.length && !(kernelReadOnly(cfg.input) && kernelReadOnly(cfg.resource)))
+				ctx.ui.notify(`SAM: ${READ_ONLY_NOTE}`, "warning");
 		},
 	});
 
