@@ -21,6 +21,9 @@ agent*.jsonl
 agent*.err
 *.log
 
+# paper writing and presentation artifacts
+paper/
+
 # previous implementation archives (kept locally for reference)
 arxiv/temp/
 GWAS.zip

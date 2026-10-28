@@ -44,7 +44,8 @@ setsid nohup bench/ollama-serve.sh > .sam/ollama/serve.log 2>&1 &     # 127.0.0.
 bench/pull-models.sh > .sam/bench/pull.log 2>&1 &                     # 모델 내려받기 (작은 것부터)
 .sam/bin/pixi install --manifest-path bench/hf/pixi.toml               # BioGPT용 환경 (한 번)
 
-# 1) 정답 실행 (한 번): output/bench/reference/make_reference.sh
+# 1) 정답 실행 (한 번, 약 10분): 결과는 output/bench/reference/
+bench/make-reference.sh sam-data/input sam-data/resource
 
 # 2) 벤치마크: 내려받기가 끝난 모델부터 차례로 실행, 모델마다 보고서 생성
 ./sam bench run --run-id 2026-10-28

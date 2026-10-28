@@ -69,6 +69,7 @@ cd /projects/NIH/sam.pi.nih
 | [docs/REVIEW-2026-10-27.md](docs/REVIEW-2026-10-27.md) | 디버그·검증 리포트: 이슈와 조치, 외부 기준(KBA 187K) 비교, 로컬 모델 시험 |
 | [docs/BENCHMARK.md](docs/BENCHMARK.md) | 로컬 LLM 벤치마크: 설계, 대상 모델, 실행 방법, 결과 위치 |
 | [docs/EVALUATION.md](docs/EVALUATION.md) | 벤치마크 평가 방법과 기준: Track A·B의 시나리오, 확인 항목, 채점·집계 규칙 (한국어 + 영문) |
+| [docs/DEVNOTES.md](docs/DEVNOTES.md) | 개발 노트와 변경 이력: 현재 상태, 다른 서버로 옮기기, 결정 사항, 주의점, 남은 일 |
 
 ## 폴더 구조
 
