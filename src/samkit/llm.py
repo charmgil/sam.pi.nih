@@ -2,7 +2,8 @@
 
   python -m samkit.llm list                    catalog + what is installed
   python -m samkit.llm pull <id|ollama-tag>    ollama pull + a 'sam-<id>' variant with a larger context
-  python -m samkit.llm models-json [--vllm ID] write pi's models.json (ollama + optional vllm provider)
+  python -m samkit.llm models-json [--vllm ID] write pi's models.json (ollama + optional vllm provider) and,
+                                               unless one is saved already, pi's startup model (catalog default)
   python -m samkit.llm vllm-command <id>       print the vllm serve command for a catalog model
 
 Ollama's OpenAI-compatible API cannot set the context size per request, so
@@ -84,13 +85,43 @@ def agent_dir() -> Path:
     return Path(os.environ.get("PI_CODING_AGENT_DIR", harness_home() / ".pi-agent"))
 
 
+def default_variant(cat: dict, role: str) -> str | None:
+    """`sam-<id>` of the catalog default for "agent" or "consultant" (catalog.json "defaults")."""
+    key = (cat.get("defaults") or {}).get(role)
+    e = find(cat, key) if key else None
+    return variant(e) if e else None
+
+
+def set_startup_model(cat: dict, ready: set[str]) -> None:
+    """Make the catalog default agent pi's startup model, unless the user already saved one (/model, Ctrl+S)."""
+    want = default_variant(cat, "agent")
+    if not want:
+        return
+    path = agent_dir() / "settings.json"
+    settings = json.loads(path.read_text()) if path.exists() else {}
+    if settings.get("defaultModel"):
+        chosen = f"{settings.get('defaultProvider', '?')}/{settings['defaultModel']}"
+        if chosen != f"ollama/{want}":
+            print(f"pi startup model stays {chosen} ({path}); the catalog default is ollama/{want}")
+        return
+    if want not in ready:
+        print(f"default agent ollama/{want} is not pulled yet: ./sam llm pull {want.removeprefix('sam-')}",
+              file=sys.stderr)
+        return
+    settings.update(defaultProvider="ollama", defaultModel=want)
+    path.write_text(json.dumps(settings, indent=2))
+    print(f"pi startup model: ollama/{want} ({path})")
+
+
 # ── commands ────────────────────────────────────────────────────────────────
 def cmd_list(_a) -> int:
     cat = load_catalog()
     found = installed()
     have = found or set()
     tags = {t.removesuffix(":latest") for t in have} | have
-    print(f"ollama: {ollama_url()} ({'not reachable' if found is None else f'{len(have)} model(s)'})\n")
+    print(f"ollama: {ollama_url()} ({'not reachable' if found is None else f'{len(have)} model(s)'})")
+    print(f"defaults: agent ollama/{default_variant(cat, 'agent')}, "
+          f"consultant ollama/{default_variant(cat, 'consultant')}\n")
     print(f"{'id':24} {'role':17} {'tier':28} {'ollama tag':34} {'GB':>4}  status")
     for e in entries(cat):
         tag = e.get("ollama")
@@ -184,6 +215,7 @@ def cmd_models_json(a) -> int:
           + (f"; vllm {providers['vllm']['models'][0]['id']}" if a.vllm else ""))
     if not models:
         print("no sam-* Ollama variants found; run `./sam llm pull <id>` first", file=sys.stderr)
+    set_startup_model(cat, mine)
     return 0
 
 

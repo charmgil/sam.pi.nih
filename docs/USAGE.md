@@ -18,7 +18,7 @@ mkdir -p ~/analysis/hdl && cd ~/analysis/hdl
 | `--output DIR` | `./output` | 출력 폴더 |
 | `--privacy auto\|on\|off` | `auto` | 개인 단위 파일 읽기 차단. auto = 클라우드 모델일 때만 |
 | `--approvals ask\|allow\|deny` | `ask` | 설치·다운로드·부분 PRS 승인. 화면이 없는 실행에서 ask는 deny로 동작 |
-| `--consultant P/M` | 없음 | `sam_consult`가 쓸 모델 (예: `ollama/sam-medgemma-27b`) |
+| `--consultant P/M` | `ollama/sam-gemma4-31b` (카탈로그 기본값) | `sam_consult`가 쓸 모델. `none`이면 끔 (예: `ollama/sam-medgemma-27b`) |
 | `--threads N`, `--build hg19\|hg38` | 코어 수(최대 16), hg19 | 분석 도구 스레드, 유전체 빌드 |
 | 그 밖의 인자 | | 그대로 pi에 전달 (`--model`, `-p`, `--mode json`, `--continue` 등) |
 
@@ -26,6 +26,8 @@ mkdir -p ~/analysis/hdl && cd ~/analysis/hdl
 pi 하단 상태줄에 `SAM ▸ <입력 폴더> │ privacy on/off`가 표시됩니다.
 
 ## 2. 대화 예시
+
+더 많은 기능별 프롬프트(한국어·영어)는 [USECASES.md](USECASES.md)에 있습니다.
 
 기존 워크숍 시나리오(`arxiv/*/prompt.txt`)를 이 하네스로 하면 다음과 같습니다. 에이전트는
 **요청한 단계까지만** 실행하고, 결과를 보고한 뒤 다음 단계를 묻습니다.
@@ -170,7 +172,7 @@ $S report --input $D/input
 ## 7. 비대화형 실행 (스크립트, 모델 비교)
 
 ```bash
-./sam agent --input ... --resource ... --model ollama/sam-gpt-oss-20b --approvals deny \
+./sam agent --input ... --resource ... --model ollama/sam-gemma4-31b --approvals deny \
     -p "HDL GWAS 결과에서 유의한 locus 목록을 보여줘" < /dev/null
 ./sam agent ... --mode json -p "..." < /dev/null > events.jsonl     # 도구 호출까지 JSONL 이벤트로
 ```
@@ -203,6 +205,6 @@ $S report --input $D/input
 | 실행 폴더 바로 아래에 새 파일을 만들 때 `Permission denied` | 입력 폴더가 실행 폴더 안에 있을 때의 Landlock 제약. `output/` 아래에 쓰거나 입력 폴더를 실행 폴더 밖에 두기 |
 | PheWeb 다운로드가 중간에 끊김 | 서버가 느림(수십 KB/s). 같은 코드로 다시 받으면 `.part` 파일에서 이어 받음(`samkit pheweb head`가 `partial_mb` 표시) |
 | regional plot에 유전자 트랙 없음 | Ensembl REST 접속 실패(hg19는 grch37.rest.ensembl.org, hg38은 rest.ensembl.org). 그림은 그대로 생성, 경고 표시 |
-| 로컬 모델이 도구를 잘 안 씀 | 더 큰 모델(`qwen3.6-35b-a3b`, `qwen3.8-27b`)로 바꾸거나 `/gwas` 같은 템플릿 사용 |
+| 로컬 모델이 도구를 잘 안 씀 | 기본 모델(`gemma4-31b`)이나 `qwen3.8-27b`로 바꾸거나 `/gwas` 같은 템플릿 사용. 7–8B 모델과 Mistral 계열은 도구를 거의 안 씀([BENCHMARK.md](BENCHMARK.md)) |
 | `pi -p`가 끝나지 않음 | `< /dev/null` 누락 |
 | 단계 실패 상세 | 오류의 `hint`와 `output/logs/<시각>_<단계>.log` |

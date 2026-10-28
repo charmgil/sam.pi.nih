@@ -1,6 +1,6 @@
 # SAM 로컬 LLM 벤치마크 — 비교 요약 (진행 중, 1/14 모델 완료)
 
-> 실행 ID `2026-10-28-ro` · 갱신 2026-10-28 04:22 · 모델 하나가 끝날 때마다 자동 갱신됩니다.
+> 실행 ID `2026-10-28-ro` · 갱신 2026-10-28 11:07 · 모델 하나가 끝날 때마다 자동 갱신됩니다.
 > 데이터·실험 설계·채점 방법은 각 모델 보고서의 3–4절(공통)에 있습니다.
 
 대기 중: GPT-OSS 20B (MoE, 3.6B active), MedGemma 27B, MedGemma 4B, Mistral 7B (v0.3), BioMistral 7B, Llama 3.1 8B, TxGemma 9B (chat), Gemma 4 12B, Mistral 24B (Small 3.2), TxGemma 27B (chat), Qwen 3.8 27B, Gemma 4 31B, BioGPT 1.5B

@@ -8,10 +8,17 @@ Ollama 태그는 2026-10-27에 레지스트리에서 모두 존재를 확인했�
 | 상황 | 권장 |
 |---|---|
 | 가장 정확한 분석·해석, 계정이 있음 | `anthropic/claude-sonnet-5-5` 또는 `claude-opus-5-5` (Claude Pro/Max), `openai-codex/gpt-6-sol` (ChatGPT Plus/Pro) |
-| 데이터를 서버 밖으로 보내면 안 됨 | 로컬: `ollama/sam-qwen3.6-35b-a3b`(중형, 권장) 또는 `ollama/sam-qwen3.8-27b`(최고 품질) |
-| 빠른 확인, GPU 여유 확보 | `ollama/sam-gpt-oss-20b` (14 GB) |
-| **이 서버에서 검증한 조합** | 에이전트 `ollama/sam-qwen3.6-35b-a3b` + 자문 `ollama/sam-medgemma-27b` (GPU에 동시 적재 24+17 GB) |
-| 결과 해석에 의생명 지식 2차 의견 | `--consultant ollama/sam-medgemma-27b` (가벼운 대안: `sam-intern-s1-mini`) |
+| 데이터를 서버 밖으로 보내면 안 됨 (**기본**) | 로컬 `ollama/sam-gemma4-31b` — 에이전트와 자문 모두 (20 GB, 한 번만 적재) |
+| 기본 모델의 대안 | `ollama/sam-qwen3.8-27b` (벤치마크 2위) |
+| 빠른 응답 | `ollama/sam-qwen3.6-35b-a3b` (MoE, 약 2배 빠름) 또는 `ollama/sam-gpt-oss-20b` (14 GB, 답이 영어로 나오기 쉬움) |
+| 의생명 특화 모델의 2차 의견 | `--consultant ollama/sam-medgemma-27b` (벤치마크에서 범용 모델보다 낫지 않았음) |
+
+**기본값의 근거**: 2026-10-28 로컬 벤치마크([BENCHMARK.md](BENCHMARK.md) 5절)에서 Gemma 4 31B가 하네스 운용 1위(0.99),
+지식·해석 2위(0.85)였고 입력 수정 시도·개인 ID 노출이 없었습니다. 기본값은 `models/catalog.json`의 `defaults`에 있습니다.
+
+- 주 모델: `./sam llm models-json`이 pi의 시작 모델(`.pi-agent/settings.json`의 `defaultModel`)을 기본값으로 정합니다.
+  pi 안에서 `/model`로 고르고 `Ctrl+S`로 저장한 모델이 있으면 그것을 유지합니다. 한 번만 바꾸려면 `--model`.
+- 자문 모델: `--consultant`(또는 `SAM_CONSULTANT`)를 주지 않으면 기본값을 씁니다. 끄려면 `--consultant none`.
 
 **개인정보 관점**: 클라우드 모델을 쓰면 대화와 도구 결과(집계값)가 해당 회사로 전송됩니다.
 하네스는 클라우드 모델일 때 개인 단위 파일 읽기를 자동 차단하지만, KoGES/KBA 데이터 사용 약정에서
@@ -34,10 +41,10 @@ MMLU-Pro 등)에 보고된 공개 가중치 모델입니다.
 
 | id (`./sam llm pull <id>`) | Ollama 태그 | 크기 | 구분 | 비고 (제작사 발표) |
 |---|---|---|---|---|
-| `gpt-oss-20b` | `gpt-oss:20b` | 14 GB | 소형·빠름 (설치됨, 검증 완료) | GPQA 71.5, SWE-V 34.0. 도구 호출 안정적 |
-| `qwen3.6-35b-a3b` | `qwen3.6:35b-a3b-q4_K_M` | 24 GB | **중형 권장** | MoE(활성 3B). SWE-V 73.4, τ3 67.2, GPQA 86.0 |
-| `qwen3.8-27b` | `qwen3.8:27b-q8_0` | 30 GB | 최고 품질 | Terminal-Bench 2.1 73.0, GPQA-D 89.2 |
-| `gemma4-31b` | `gemma4:31b-it-q4_K_M` | 20 GB | 대안 | τ2 76.9, GPQA 84.3 |
+| `gemma4-31b` | `gemma4:31b-it-q4_K_M` | 20 GB | **기본** (에이전트·자문) | τ2 76.9, GPQA 84.3. 로컬 벤치마크 1위 |
+| `qwen3.8-27b` | `qwen3.8:27b-q8_0` | 30 GB | 최고 품질 | Terminal-Bench 2.1 73.0, GPQA-D 89.2. 로컬 벤치마크 2위(Q4_K_M) |
+| `qwen3.6-35b-a3b` | `qwen3.6:35b-a3b-q4_K_M` | 24 GB | 빠름 (MoE) | 활성 3B. SWE-V 73.4, τ3 67.2, GPQA 86.0. 벤치마크에서 입력 덮어쓰기 시도(커널 보호로 차단됨) |
+| `gpt-oss-20b` | `gpt-oss:20b` | 14 GB | 소형·빠름 | GPQA 71.5, SWE-V 34.0. 벤치마크에서 영어 답이 많음 |
 | `muse-glimmer-30b` | `muse-glimmer:30b` | 18 GB | 대안 (Meta) | MCP-Atlas 75.5, SWE-V 76.0 |
 | `glm-4.7-flash` | `glm-4.7-flash:latest` | 19 GB | 대안 | τ2 79.5, SWE-V 59.2 |
 | `nemotron-3.5-lightning` | `nemotron-3.5-lightning:30b` | 25 GB | 처리량 | 1M context, 에이전트 점수는 낮은 편 |
@@ -62,12 +69,12 @@ GWAS Catalog나 변이 문헌으로만 학습한 공개 대화형 LLM은 찾지 
 | id | 받는 곳 | 크기 | 라이선스 | 비고 |
 |---|---|---|---|---|
 | `intern-s1-mini` (소형 자문) | Ollama `internlm/interns1:mini-q8_0` | 9 GB | Apache-2.0 | 과학 특화(생물·화학, 서열 데이터 포함), Qwen3-8B 기반 |
-| `medgemma-27b` (기본 자문) | Ollama `medgemma:27b` | 17 GB | HAI-DEF 약관(동의 필요) | Google 의료 특화 Gemma 3, 도구 호출 없음 |
+| `medgemma-27b` | Ollama `medgemma:27b` | 17 GB | HAI-DEF 약관(동의 필요) | Google 의료 특화 Gemma 3, 도구 호출 없음 |
 | `medgemma1.5-4b` | Ollama `medgemma1.5:4b` | 3 GB | HAI-DEF 약관 | 소형 |
 | `intern-s2-preview` | HF `internlm/Intern-S2-Preview-FP8` (vLLM) | 36 GB | Apache-2.0 | 과학 MoE, **도구 호출 지원** → 에이전트로도 시험 가능 |
 | `biomni-r0-32b` | HF `biomni/Biomni-R0-32B-Preview` (vLLM) | 33 GB(FP8) | MIT | 의생명 에이전트용 RL 모델(GWAS 변이 우선순위 과제 포함), 자체 코드 실행 틀 전제 |
 
-사용:
+기본 자문 모델은 주 모델과 같은 `sam-gemma4-31b`입니다. 특화 모델을 자문으로 쓰려면:
 ```bash
 ./sam llm pull medgemma-27b && ./sam llm models-json
 ./sam agent --input ... --resource ... --consultant ollama/sam-medgemma-27b

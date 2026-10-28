@@ -299,7 +299,8 @@ def run_scenario(m: dict, var: dict, sc: dict, rep: int, rundir: Path, ctx: dict
     cmd = [str(HOME / "sam"), "agent", "--input", str(ctx["input"]), "--resource", str(ctx["resource"]),
            "--output", str(out), "--privacy", sc.get("privacy", "auto"), "--approvals", "deny", "--threads", "16",
            "--", "--model", f"{provider}/{var['variant']}", "--mode", "json", "-p", sc["prompt"]]
-    env = {**os.environ, "SAM_PI_AGENT_DIR": str(ctx["agent_dir"])}
+    # no consultant, as in run 2026-10-28 (the catalog default would otherwise be offered to every model)
+    env = {**os.environ, "SAM_PI_AGENT_DIR": str(ctx["agent_dir"]), "SAM_CONSULTANT": "none"}
     t0 = time.time()
     timed_out = False
     with open(d / "events.jsonl", "w") as ev, open(d / "stderr.log", "w") as er:

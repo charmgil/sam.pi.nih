@@ -34,6 +34,17 @@ const kernelReadOnly = (dir?: string): boolean => {
 	} catch {}
 	return KERNEL_RO.some((d) => within(real, d));
 };
+/** The catalog's default consultant as an Ollama `sam-*` variant (models/catalog.json "defaults"). */
+const catalogConsultant = (): string | undefined => {
+	try {
+		const cat = JSON.parse(fs.readFileSync(path.join(HOME, "models", "catalog.json"), "utf8")) as {
+			defaults?: { consultant?: string };
+		};
+		return cat.defaults?.consultant ? `ollama/sam-${cat.defaults.consultant}` : undefined;
+	} catch {
+		return undefined;
+	}
+};
 const READ_ONLY_NOTE =
 	"kernel protection covers only the directories given to ./sam agent at start; restart with --input/--resource " +
 	"for it (the command checks still apply)";
@@ -56,7 +67,7 @@ export default function sam(pi: ExtensionAPI) {
 	});
 	pi.registerFlag("sam-consultant", {
 		type: "string",
-		description: "SAM: provider/model used by sam_consult (e.g. ollama/sam-intern-s1-mini)",
+		description: "SAM: provider/model used by sam_consult (default: models/catalog.json defaults.consultant; 'none' turns it off)",
 	});
 
 	const flag = (name: string, env: string): string | undefined => {
@@ -95,7 +106,8 @@ export default function sam(pi: ExtensionAPI) {
 		configWarnings = [];
 		cfg.privacy = parsePrivacy(flag("sam-privacy", "SAM_PRIVACY"));
 		cfg.approve = parseApprove(flag("sam-approve", "SAM_APPROVE"));
-		cfg.consultant = flag("sam-consultant", "SAM_CONSULTANT");
+		const consultant = flag("sam-consultant", "SAM_CONSULTANT");
+		cfg.consultant = consultant?.toLowerCase() === "none" ? undefined : (consultant ?? catalogConsultant());
 		exportEnv();
 	};
 

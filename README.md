@@ -46,8 +46,8 @@ cd /projects/NIH/sam.pi.nih
 ./sam bootstrap                                   # pixi, 분석 도구, Node.js, pi 설치 (한 번만)
 ./sam doctor --input sam-data/input --resource sam-data/resource   # 도구·리소스 점검
 
-# 로컬 모델(예: gpt-oss 20B)을 쓸 때
-./sam llm pull gpt-oss-20b && ./sam llm models-json
+# 로컬 모델: 기본은 Gemma 4 31B (2026-10-28 벤치마크 1위, docs/BENCHMARK.md)
+./sam llm pull gemma4-31b && ./sam llm models-json
 
 # 에이전트 시작 (결과는 지금 디렉토리의 ./output 에 생김)
 ./sam agent --input sam-data/input --resource sam-data/resource
@@ -61,12 +61,14 @@ cd /projects/NIH/sam.pi.nih
 |---|---|
 | [docs/SETUP.md](docs/SETUP.md) | 준비: 설치, 계정·모델 연결, 데이터 배치, 다른 서버로 옮기기 |
 | [docs/USAGE.md](docs/USAGE.md) | 작동: 에이전트 사용 예, 명령, 출력 구조, 비대화형 실행, 문제 해결 |
+| [docs/USECASES.md](docs/USECASES.md) | 기능·사용 사례별 프롬프트 모음 (한국어·영어), 거절되는 요청과 그 이유 |
 | [docs/WORKFLOW.md](docs/WORKFLOW.md) | 워크플로우: task별 역할, 입력·출력, 외부 프로그램, 흐름도 |
 | [docs/TOOLS.md](docs/TOOLS.md) | 필요한 도구와 리소스 목록 (버전, 출처, 어느 단계에 필요한지) |
 | [docs/MODELS.md](docs/MODELS.md) | LLM 카탈로그: 클라우드, 로컬 벤치마크 상위 모델, 유전체 특화 모델 |
 | [docs/DESIGN.md](docs/DESIGN.md) | 구조와 설계 결정, 이전 구현의 문제(I-1~I-28 등)를 어떻게 처리했는지 |
 | [docs/REVIEW-2026-10-27.md](docs/REVIEW-2026-10-27.md) | 디버그·검증 리포트: 이슈와 조치, 외부 기준(KBA 187K) 비교, 로컬 모델 시험 |
 | [docs/BENCHMARK.md](docs/BENCHMARK.md) | 로컬 LLM 벤치마크: 설계, 대상 모델, 실행 방법, 결과 위치 |
+| [docs/EVALUATION.md](docs/EVALUATION.md) | 벤치마크 평가 방법과 기준: Track A·B의 시나리오, 확인 항목, 채점·집계 규칙 (한국어 + 영문) |
 
 ## 폴더 구조
 

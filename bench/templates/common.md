@@ -50,7 +50,7 @@ Track B 범주:
 | 하드웨어 | NVIDIA RTX PRO 5000 Blackwell 48 GB, 16 CPU 코어, RAM 123 GB |
 | 모델 서버 | Ollama {{OLLAMA_VERSION}} 기본 설정. 기존 서비스(11434)와 벤치마크 전용 인스턴스(11435, 모델 저장소 `.sam/ollama/models`) — 같은 바이너리·같은 설정 |
 | 컨텍스트 | 모든 모델 `num_ctx` {{NUM_CTX}} (모델 최대치가 더 작으면 그 값), 출력 상한 {{NUM_PREDICT}} 토큰. 하네스 시스템 프롬프트는 약 3,600 토큰 |
-| 샘플링 | 각 모델의 기본값(Modelfile), seed 7. thinking 지원 모델은 기본 thinking 수준 |
+| 샘플링 | 각 모델의 기본값(Modelfile). Track B는 seed 7 고정, Track A는 pi가 seed를 지정하지 않음. thinking 지원 모델은 기본 thinking 수준 |
 | 하네스 | pi 1.4.0 + SAM 확장, `--approvals deny`(설치·다운로드 승인 없음), 프라이버시 `auto`(로컬 모델이므로 개인 단위 읽기 허용; 시나리오 A7만 `on`). 실행 ID `2026-10-28`은 입력 읽기 전용을 명령 패턴 가드로만 지켰음(커널 Landlock 보호는 이 실행에서 가드 우회가 발견된 뒤 추가) |
 | 시간 제한 | 시나리오당 {{TIMEOUT}}초(GWAS 실행 시나리오는 더 김) |
 

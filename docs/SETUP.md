@@ -44,7 +44,7 @@ pi 버전은 `SAM_PI_VERSION=1.4.0 ./sam bootstrap --envs agent`처럼 지정합
 설치 확인:
 
 ```bash
-./sam test                                                        # 단위 테스트 (Python 39, 가드 14)
+./sam test                                                        # 단위 테스트 (Python 43, 가드 14)
 ./sam doctor --input sam-data/input --resource sam-data/resource  # 단계별 준비 상태
 ```
 
@@ -110,13 +110,11 @@ PC, 개인별 PRS 점수) 읽기가 차단됩니다. 분석 도구는 원래 집
 Ollama 0.40.11이 서버에 이미 설치되어 동작 중입니다(`/usr/local/bin/ollama`, 포트 11434).
 
 ```bash
-./sam llm list                      # 카탈로그와 설치 상태
-./sam llm pull gpt-oss-20b          # 받기 + 'sam-gpt-oss-20b' 변형 생성(num_ctx 65536, num_predict 지정)
-./sam llm pull qwen3.6-35b-a3b      # 권장 중형 모델 (24 GB)
-./sam llm pull medgemma-27b         # 자문용 의료 특화 모델 (17 GB; 소형 대안 intern-s1-mini 9 GB)
-./sam llm models-json               # .pi-agent/models.json 에 등록
-./sam agent --input ... --resource ... --model ollama/sam-qwen3.6-35b-a3b \
-           --consultant ollama/sam-medgemma-27b
+./sam llm list                      # 카탈로그, 기본값, 설치 상태
+./sam llm pull gemma4-31b           # 기본 모델(에이전트·자문, 20 GB): 받기 + 'sam-gemma4-31b' 변형 생성(num_ctx 65536, num_predict 지정)
+./sam llm models-json               # .pi-agent/models.json 에 등록 + pi 시작 모델을 기본값으로(이미 저장한 모델이 없을 때)
+./sam agent --input ... --resource ...                      # 기본 모델로 시작, 자문도 같은 모델
+./sam llm pull qwen3.6-35b-a3b      # (선택) 빠른 MoE 모델 (24 GB) → --model ollama/sam-qwen3.6-35b-a3b
 ```
 
 `pull`이 별도 변형(`sam-<id>`)을 만드는 이유: Ollama의 OpenAI 호환 API는 요청마다 context 길이를 바꿀 수

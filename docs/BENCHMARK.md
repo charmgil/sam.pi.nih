@@ -12,7 +12,8 @@
 
 정답값은 모델 없이 `samkit`를 직접 돌린 정답 실행(`output/bench/reference/`)에서 가져옵니다. 채점은 모두 결정론적 규칙입니다
 (LLM 심판 없음). 시나리오·문항·채점 기준은 [scenarios.json](../bench/scenarios.json), [questions.json](../bench/questions.json),
-[score.py](../bench/score.py)에 있고, 모델 보고서의 3–4절에 표로 정리됩니다.
+[score.py](../bench/score.py)에 있고, 모델 보고서의 3–4절에 표로 정리됩니다. 평가 방법과 기준 전체는
+[EVALUATION.md](EVALUATION.md)(한국어 + 영문)에 있습니다.
 
 ## 2. 대상 모델 (2026-10-28 실행)
 
@@ -29,7 +30,7 @@
 | TxGemma | 9B, 27B (chat) | Hugging Face GGUF(bartowski). 도구 호출 미지원 → Track B만 |
 | BioMistral | 7B | Hugging Face GGUF. 도구 호출 미지원 → Track B만 |
 | BioGPT | Large 1.5B | transformers(CPU). 지시 학습·채팅 템플릿 없음 → Track B만, 객관식은 로그 우도 지표 병기 |
-| (기준) Qwen 3.6 | 35B-A3B | 현재 하네스 권장 모델(카탈로그 기본은 GPT-OSS 20B) |
+| (기준) Qwen 3.6 | 35B-A3B | 실행 당시 하네스 권장 모델(당시 카탈로그 기본은 GPT-OSS 20B; 이 결과로 기본을 Gemma 4 31B로 변경) |
 
 제외: **GPT-Rosalind**(OpenAI, 공개 가중치 없음·신뢰 접근 API 전용), **Me-LLaMA**(PhysioNet 자격 인증 후 제공. 팀이 접근권을
 얻으면 13B-chat을 추가할 수 있음), 40B 이상 모델.

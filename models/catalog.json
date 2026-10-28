@@ -1,6 +1,11 @@
 {
   "_about": "SAM model catalog. Tags verified against registry.ollama.ai / Hugging Face on 2026-10-27. Benchmark notes are vendor-reported. See docs/MODELS.md. Consultants use num_ctx 16384 (short questions) to leave VRAM for the agent model.",
   "context_length": 65536,
+  "defaults": {
+    "agent": "gemma4-31b",
+    "consultant": "gemma4-31b",
+    "basis": "local benchmark 2026-10-28 (docs/BENCHMARK.md): best agent; consultant shares the loaded agent model"
+  },
   "cloud": [
     {
       "provider": "anthropic",
@@ -40,7 +45,7 @@
     {
       "id": "gpt-oss-20b",
       "role": "agent",
-      "tier": "small/fast (default)",
+      "tier": "small/fast",
       "ollama": "gpt-oss:20b",
       "hf": "openai/gpt-oss-20b",
       "size_gb": 14,
@@ -61,7 +66,7 @@
     {
       "id": "qwen3.6-35b-a3b",
       "role": "agent",
-      "tier": "mid (recommended)",
+      "tier": "fast (MoE)",
       "ollama": "qwen3.6:35b-a3b-q4_K_M",
       "hf": "Qwen/Qwen3.6-35B-A3B-FP8",
       "size_gb": 24,
@@ -107,7 +112,7 @@
     {
       "id": "gemma4-31b",
       "role": "agent",
-      "tier": "alternative",
+      "tier": "default (agent + consultant)",
       "ollama": "gemma4:31b-it-q4_K_M",
       "hf": "google/gemma-4-31B-it",
       "size_gb": 20,
@@ -125,7 +130,7 @@
           "gemma4"
         ]
       },
-      "note": "tau2 76.9, GPQA 84.3. Dense: larger KV cache at long context."
+      "note": "tau2 76.9, GPQA 84.3. Dense: larger KV cache at long context. Local benchmark 2026-10-28: Track A 0.99 (1st), Track B 0.85 (2nd)."
     },
     {
       "id": "muse-glimmer-30b",
@@ -275,7 +280,7 @@
     {
       "id": "medgemma-27b",
       "role": "consultant",
-      "tier": "default consultant",
+      "tier": "biomedical consultant",
       "ollama": "medgemma:27b",
       "hf": "google/medgemma-27b-text-it",
       "size_gb": 17,
