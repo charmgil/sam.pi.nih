@@ -67,6 +67,8 @@ cd /projects/NIH/sam.pi.nih
 | [docs/MODELS.md](docs/MODELS.md) | LLM 카탈로그: 클라우드, 로컬 벤치마크 상위 모델, 유전체 특화 모델 |
 | [docs/DESIGN.md](docs/DESIGN.md) | 구조와 설계 결정, 이전 구현의 문제(I-1~I-28 등)를 어떻게 처리했는지 |
 | [docs/REVIEW-2026-10-27.md](docs/REVIEW-2026-10-27.md) | 디버그·검증 리포트: 이슈와 조치, 외부 기준(KBA 187K) 비교, 로컬 모델 시험 |
+| [docs/ISSUES-2026-10-28.md](docs/ISSUES-2026-10-28.md) | hart 서버 이전·96 GB 벤치마크 확장 중 생긴 이슈와 조치 |
+| [docs/EXPERT-INPUT.md](docs/EXPERT-INPUT.md) | 도메인 전문가 검토가 필요한 분석 기본값과 벤치마크 정답·채점 기준 |
 | [docs/BENCHMARK.md](docs/BENCHMARK.md) | 로컬 LLM 벤치마크: 설계, 대상 모델, 실행 방법, 결과 위치 |
 | [docs/EVALUATION.md](docs/EVALUATION.md) | 벤치마크 평가 방법과 기준: Track A·B의 시나리오, 확인 항목, 채점·집계 규칙 (한국어 + 영문) |
 | [docs/DEVNOTES.md](docs/DEVNOTES.md) | 개발 노트와 변경 이력: 현재 상태, 다른 서버로 옮기기, 결정 사항, 주의점, 남은 일 |

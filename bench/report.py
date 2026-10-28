@@ -1,8 +1,8 @@
 """Reports for the SAM local-LLM benchmark: one per model (as soon as it finishes) and a summary.
 
 Templates: bench/templates/model_report.md and common.md (data + experiment design, shared by all
-model reports). Values come from the reference run, scenarios.json, questions.json and each
-model's result.json.
+model reports). Values come from the reference run, scenarios.json, questions.json, each model's
+result.json, and the run's own copies of models.json and env.json (machine and software).
 """
 
 from __future__ import annotations
@@ -39,6 +39,36 @@ def model_name(m: dict) -> str:
     return f"{m['family']} {m['size']}"
 
 
+def run_config(rundir: Path) -> dict:
+    """Model list of the run (copied into the run folder when it started), else the current one."""
+    return _load(rundir / "models.json") or _load(BENCH / "models.json")
+
+
+def _env_rows(env: dict, variants: dict, cfg: dict) -> dict:
+    gpus = ", ".join(f"{g['name']} {g['memory_gb']} GB" for g in env.get("gpus") or []) or "—"
+    hw = f"{gpus}, {env.get('cpu_cores', '—')} CPU 코어, RAM {env.get('ram_gb', '—')} GB"
+    if env.get("host"):
+        hw += f" (`{env['host']}`, 커널 {env.get('kernel', '—')})"
+    if env.get("note"):
+        hw += f". {env['note']}"
+    ver = sorted({v.get("ollama_version") for v in variants.values() if v.get("ollama_version")})
+    ver = ver or sorted({v for v in (env.get("ollama") or {}).values() if v}) or ["—"]
+    used = {v.get("url") for v in variants.values()}
+    label = {"system": "시스템 서비스", "bench": "벤치마크 전용, 저장소 `.sam/ollama/models`"}
+    servers = [f"{s['url'].rsplit(':', 1)[1]}({label.get(name, name)})"
+               for name, s in cfg.get("servers", {}).items() if s["url"] in used or not used]
+    if env.get("read_only_note"):
+        ro = env["read_only_note"]
+    elif env.get("landlock_abi") and env.get("sandbox", "on") != "off":
+        ro = (f"입력·리소스는 커널(Linux Landlock ABI {env['landlock_abi']}) 수준 읽기 전용이고, 명령 패턴 가드가 먼저 "
+              "거절·설명함. 모델의 쓰기 시도는 막혀도 `no_input_write`로 감점")
+    else:
+        ro = "입력 읽기 전용을 명령 패턴 가드로만 지킴(커널 보호 없음)"
+    return {"HARDWARE": hw, "OLLAMA_VERSION": ", ".join(ver), "SERVERS": ", ".join(servers) or "—",
+            "PI_VERSION": env.get("pi") or "—", "READ_ONLY": ro,
+            "SCOPE": cfg.get("scope") or "—"}
+
+
 # ── reference values ────────────────────────────────────────────────────────
 def reference(rundir: Path) -> dict:
     ref = rundir.parent / "reference" / "output"
@@ -63,7 +93,6 @@ def common_section(rundir: Path, cfg: dict) -> str:
     qs = _load(BENCH / "questions.json")
     r = reference(rundir)
     variants = _load(rundir / "variants.json")
-    ver = sorted({v.get("ollama_version") for v in variants.values() if v.get("ollama_version")}) or ["0.40.11"]
     rows = ["| ID | 요청(요약) | 시작 상태 | 반복 | 확인 항목 |", "|---|---|---|---|---|"]
     for s in scen.get("scenarios", []):
         rows.append(f"| {s['id']} | {s['title']} | {scen['seed_labels'][s['seed']]} | "
@@ -82,8 +111,9 @@ def common_section(rundir: Path, cfg: dict) -> str:
             "INTERCEPT": _f(r["intercept"], 4), "LOCUS2": r.get("locus2") or "—", "N_CS": _f(r["n_cs"]),
             "PRS_MATCH": _pct(r["prs_match"]) if isinstance(r.get("prs_match"), float) else _f(r.get("prs_match")),
             "N_QUESTIONS": len(qs.get("questions", [])), "SCENARIO_TABLE": "\n".join(rows),
-            "QUESTION_TABLE": "\n".join(qrows), "OLLAMA_VERSION": ", ".join(ver), "NUM_CTX": cfg["num_ctx"],
-            "NUM_PREDICT": cfg["num_predict"], "TIMEOUT": scen.get("timeout")}
+            "QUESTION_TABLE": "\n".join(qrows), "NUM_CTX": cfg["num_ctx"],
+            "NUM_PREDICT": cfg["num_predict"], "TIMEOUT": scen.get("timeout"), "RUN_ID": rundir.name,
+            **_env_rows(_load(rundir / "env.json"), variants, cfg)}
     return _fill((TPL / "common.md").read_text(), vals)
 
 
@@ -191,8 +221,17 @@ def track_b_md(tb: dict | None, qs: dict) -> tuple[str, list[str]]:
     return "\n".join([head, "", "\n".join(rows), "", "\n".join(items), "", *ex_parts]), obs
 
 
+def _load_str(ld: dict) -> str:
+    if not ld:
+        return "—"
+    gpu = (f" · GPU 메모리 +{ld['gpu_delta_gb']} GB (적재 후 전체 {ld.get('gpu_used_gb')}/{ld.get('gpu_total_gb')} GB, "
+           "nvidia-smi)" if ld.get("gpu_delta_gb") is not None else "")
+    where = "**CPU 오프로드 있음**" if ld.get("cpu_offload") else "GPU에 모두 적재"
+    return f"{where} · 적재 {ld.get('seconds', '—')}초{gpu} · 컨텍스트 {ld.get('context_length', '—')}"
+
+
 def write_model_report(rundir: Path, res: dict) -> Path:
-    cfg = _load(BENCH / "models.json")
+    cfg = run_config(rundir)
     qs = _load(BENCH / "questions.json")
     m, var = res["model"], res.get("variant") or {}
     ta, tb = res.get("track_a"), res.get("track_b")
@@ -219,7 +258,10 @@ def write_model_report(rundir: Path, res: dict) -> Path:
         best = max(tb["by_category"].items(), key=lambda x: x[1])
         hi.append(f"- Track B: 가장 강한 범주 {best[0]} ({best[1]:.2f}).")
     mt = ["| 항목 | 값 |", "|---|---|", f"| 계열 / 크기 | {m['family']} / {m['size']} |",
-          f"| 종류 | {'유전체·의생명 특화' if m['kind'] == 'biomedical' else '범용'} |",
+          f"| 종류 | {'유전체·의생명 특화' if m['kind'] == 'biomedical' else '범용'} |"]
+    if m.get("group"):
+        mt.append(f"| 구분 | {cfg.get('groups', {}).get(m['group'], m['group'])} |")
+    mt += [
           f"| 출처 | {m['source']} (`{m.get('tag') or m.get('path')}`) |",
           f"| 라이선스 | {m.get('license', '—')} |",
           f"| 양자화 / 파라미터 | {var.get('quantization') or ('FP32' if m.get('runner') == 'hf' else '—')} / "
@@ -227,6 +269,11 @@ def write_model_report(rundir: Path, res: dict) -> Path:
           f"| 기능 (Ollama) | {', '.join(var.get('capabilities') or []) or '—'} |",
           f"| 벤치마크 변형 | `{var.get('variant', '—')}`, num_ctx {var.get('num_ctx', '—')}"
           f"{', 채팅 템플릿 보정' if var.get('template_overridden') else ''} |"]
+    if res.get("load"):
+        mt.append(f"| GPU 적재 | {_load_str(res['load'])} |")
+    if res.get("loadavg_start") is not None:
+        mt.append(f"| 서버 CPU 부하(1분 평균) | 시작 {res['loadavg_start']} · 끝 {res.get('loadavg_end', '—')} "
+                  "(공유 서버: 다른 작업이 실행 시간에 영향) |")
     if m.get("note") or m.get("reference"):
         mt.append(f"| 비고 | {m.get('reference') or m.get('note')} |")
     if res.get("gpu_loaded_before"):
@@ -262,6 +309,7 @@ def write_summary(rundir: Path, cfg: dict) -> Path:
              "> 데이터·실험 설계·채점 방법은 각 모델 보고서의 3–4절(공통)에 있습니다.", ""]
     if pending:
         lines += ["대기 중: " + ", ".join(model_name(m) for m in pending), ""]
+    groups = cfg.get("groups", {})
     lines += ["## 1. 전체 비교", "",
               "| 모델 | 종류 | 양자화 | Track A 운용 | 치명 실패 | Track B 지식·해석 | " +
               " | ".join(cats) + " | tok/s | 소요(분) | 보고서 |",
@@ -272,12 +320,17 @@ def write_summary(rundir: Path, cfg: dict) -> Path:
         a = f"{ta['overall']:.2f}" if ta.get("eligible") else ("N/A" if ta else "—")
         crit = ta.get("critical_fails", "—") if ta.get("eligible") else "—"
         bc = " | ".join(_f((tb.get("by_category") or {}).get(c), 2) for c in cats)
-        lines.append(f"| {model_name(m)}{' (기준)' if m.get('reference') else ''} | "
+        tag = " ★" if m.get("group") in ("large", "quant") else ""
+        offload = " ⚠오프로드" if (r.get("load") or {}).get("cpu_offload") else ""
+        lines.append(f"| {model_name(m)}{tag}{' (기준)' if m.get('reference') else ''}{offload} | "
                      f"{'특화' if m['kind'] == 'biomedical' else '범용'} | "
                      f"{var.get('quantization') or ('FP32' if m.get('runner') == 'hf' else '—')} | {a} | {crit} | "
                      f"{_f(tb.get('overall'), 2)} | {bc} | {_f(tb.get('tokens_per_s'), 1)} | "
                      f"{r.get('minutes', '—')} | [{m['id']}]({m['id']}.md) |")
-    lines += ["", "N/A: 도구 호출을 지원하지 않아 하네스 주 모델로 쓸 수 없음.", "",
+    note = ["", "N/A: 도구 호출을 지원하지 않아 하네스 주 모델로 쓸 수 없음."]
+    if groups:
+        note.append("★: 이번 실행에서 추가한 모델(" + ", ".join(v for k, v in groups.items() if k != "base") + ").")
+    lines += note + ["",
               "## 2. Track A 시나리오별 점수", "",
               "| 모델 | " + " | ".join(sc_ids) + " | 전체 |", "|---|" + "---|" * (len(sc_ids) + 1)]
     for m in done:

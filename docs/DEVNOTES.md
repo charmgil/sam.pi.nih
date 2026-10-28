@@ -17,7 +17,7 @@
 | 읽기 전용 보장 | 입력·리소스 쓰기를 **커널(Linux Landlock)** 이 막음(`src/samkit/sandbox.py`, R40). 가드는 먼저 거절하고 이유를 설명 |
 | 기본 모델 | 로컬 **Gemma 4 31B**(`ollama/sam-gemma4-31b`), 에이전트·자문 공용. 클라우드 모델은 쓰지 않음(팀 결정) |
 | 로컬 LLM 벤치마크 | 14개 모델 완료(실행 ID `2026-10-28`). 종합 보고서 `output/bench/2026-10-28/reports/FINAL.md`(git에 있음) |
-| 문서 | README, SETUP, USAGE, USECASES, WORKFLOW, DESIGN, TOOLS, MODELS, BENCHMARK, EVALUATION, REVIEW-2026-10-27, 이 문서 |
+| 문서 | README, SETUP, USAGE, USECASES, WORKFLOW, DESIGN, TOOLS, MODELS, BENCHMARK, EVALUATION, REVIEW-2026-10-27, ISSUES-2026-10-28, EXPERT-INPUT, 이 문서 |
 | 테스트 | `./sam test`: Python 43개 + 가드 14개 통과, `ruff check src tests bench` 통과 |
 
 검증에 쓴 서버: NVIDIA RTX PRO 5000 Blackwell 48 GB, RAM 123 GB, 16코어, Debian 13(커널 6.12), Ollama 0.40.11(`/usr/local/bin/ollama`,
@@ -119,7 +119,7 @@ rsync -a <옛 서버>:/projects/NIH/sam.pi.nih/sam-data/ ./sam-data/      # 또�
 | 10-27 | 워크숍 스크립트와 다른 기본 파라미터(step1 MAF 1%, 별도 PCA pruning, Firth, SuSiE min_abs_corr 0.5, 단변량 LDSC 기본)는 일단 수용, 근거는 DESIGN.md 3절 |
 | 10-27 | genome103의 gwas-agent-kit과는 비교하지 않음 |
 | 10-28 | **로컬 LLM 중심.** Claude/GPT 등 상용 모델은 당분간 쓰지 않음. 클라우드 시험과 genome103 시험은 팀이 요청할 때 |
-| 10-28 | 도메인 전문가·협력 연구자와 논의 후 필요하면 요청: PCA 친족 제거, 장거리 LD 구간 제외, MAC 기준, dosage VCF 기준(O1), py2.7 LDSC와의 수치 비교(O2). **요청 전에는 바꾸지 않음** |
+| 10-28 | 도메인 전문가·협력 연구자와 논의 후 필요하면 요청: PCA 친족 제거, 장거리 LD 구간 제외, MAC 기준, dosage VCF 기준(O1), py2.7 LDSC와의 수치 비교(O2). **요청 전에는 바꾸지 않음**. 검토 항목 전체: [EXPERT-INPUT.md](EXPERT-INPUT.md) |
 | 10-28 | 가드 패턴은 충분하다고 판단(그 뒤 가드 우회가 실제로 나와 커널 보호를 추가, R40) |
 | 10-28 | 벤치마크는 40B 미만 모델만 |
 | 10-28 | 기본 모델을 Gemma 4 31B로(에이전트·자문) |

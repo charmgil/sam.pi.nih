@@ -5,7 +5,9 @@
     ./sam bench rescore [--run-id ID]         recompute scores from saved answers/events, then report
 
 Models are processed one at a time in bench/models.json order; a model on the benchmark Ollama
-server is started once its download finished (.sam/bench/pulled/<tag>). For each model:
+server is started once its download finished (.sam/bench/pulled/<tag>; <tag>.failed skips it). The
+first `run` of a run ID copies models.json and the machine description (env.json) into the run
+folder, and reports of that run always use those copies. For each model:
 Track B (knowledge and interpretation, no tools) then Track A (the model drives the real harness
 through pi). Right after a model finishes, reports/<model>.md is written and reports/SUMMARY.md
 is refreshed, so nobody has to wait for the whole benchmark.
@@ -16,13 +18,18 @@ Everything is written under output/bench/<run-id>/ (input and resource stay read
 from __future__ import annotations
 
 import argparse
+import contextlib
+import gzip
 import json
 import os
+import platform
 import re
 import shutil
 import signal
+import socket
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -40,6 +47,12 @@ HF_PY = BENCH / "hf" / ".pixi" / "envs" / "default" / "bin" / "python"
 
 def load(name: str) -> dict:
     return json.loads((BENCH / name).read_text())
+
+
+def run_config(rundir: Path) -> dict:
+    """The model list a run was started with (its copy in the run folder), else the current bench/models.json."""
+    f = rundir / "models.json"
+    return json.loads(f.read_text()) if f.exists() else load("models.json")
 
 
 def log(msg: str) -> None:
@@ -72,6 +85,8 @@ def wait_until_ready(m: dict) -> None:
     else:
         return
     while not ready():
+        if m.get("runner") != "hf" and marker(m["tag"]).with_name(marker(m["tag"]).name + ".failed").exists():
+            raise RuntimeError("download failed 5 times (see .sam/bench/pull.log)")
         if downloads_finished():
             raise RuntimeError("download queue finished without this model (see .sam/bench/pull.log)")
         time.sleep(60)
@@ -97,6 +112,60 @@ def make_variant(m: dict, cfg: dict) -> dict:
     return {"variant": payload["model"], "url": url, "num_ctx": ctx, "capabilities": info.get("capabilities") or [],
             "quantization": det.get("quantization_level"), "parameter_size": det.get("parameter_size"),
             "template_overridden": "template" in payload, "ollama_version": api(url, "/api/version").get("version")}
+
+
+def gpu_memory() -> dict:
+    """Used/total memory of the first GPU in GB (nvidia-smi), or {} when unavailable."""
+    try:
+        out = subprocess.run(["nvidia-smi", "--query-gpu=memory.used,memory.total", "--format=csv,noheader,nounits"],
+                             capture_output=True, text=True, timeout=30).stdout.splitlines()[0]
+        used, total = (float(x) / 1024 for x in out.split(","))
+        return {"used_gb": round(used, 1), "total_gb": round(total, 1)}
+    except (OSError, IndexError, ValueError, subprocess.SubprocessError):
+        return {}
+
+
+def load_model(var: dict) -> dict:
+    """Load the variant before Track B: load time and whether it sits entirely in GPU memory."""
+    before = gpu_memory()
+    t0 = time.time()
+    api(var["url"], "/api/generate", {"model": var["variant"], "keep_alive": "30m"}, timeout=1800)
+    info = {"seconds": round(time.time() - t0, 1)}
+    after = gpu_memory()
+    for x in api(var["url"], "/api/ps").get("models", []):
+        if x.get("name", "").split(":")[0] == var["variant"]:
+            info.update(size_gb=round(x.get("size", 0) / 1e9, 1), size_vram_gb=round(x.get("size_vram", 0) / 1e9, 1),
+                        context_length=x.get("context_length"))
+    if before and after:
+        info.update(gpu_used_gb=after["used_gb"], gpu_total_gb=after["total_gb"],
+                    gpu_delta_gb=round(after["used_gb"] - before["used_gb"], 1))
+    # Ollama under-reports size_vram for some models (docs/DEVNOTES.md), so the nvidia-smi delta decides as well
+    info["cpu_offload"] = bool(info.get("size_gb") and info.get("size_vram_gb", 0) < info["size_gb"] - 0.5
+                               and info.get("gpu_delta_gb", 0) < info["size_gb"] - 0.5)
+    return info
+
+
+@contextlib.contextmanager
+def keep_loaded(var: dict):
+    """Keep the model in GPU memory during a Track A run. pi's requests set Ollama's keep-alive to the 5-minute
+    default, so a long tool call (GWAS: 6-11 min on a busy server) unloaded the model and the reload went into the
+    measured time (Gemma 4 31B, A3: 15 s -> 311 s). A load-only request every minute resets it to 30 minutes."""
+    stop = threading.Event()
+
+    def ping() -> None:
+        while True:
+            try:
+                api(var["url"], "/api/generate", {"model": var["variant"], "keep_alive": "30m"}, timeout=1800)
+            except requests.RequestException:
+                pass
+            if stop.wait(60):
+                return
+    t = threading.Thread(target=ping, daemon=True)
+    t.start()
+    try:
+        yield
+    finally:
+        stop.set()
 
 
 def unload(url: str, name: str) -> None:
@@ -237,6 +306,11 @@ def kill_tree(pid: int) -> None:
 def seed(ref: Path, out: Path, spec: dict) -> None:
     """Start state of a scenario: copy parts of the reference output and its provenance records."""
     out.mkdir(parents=True, exist_ok=True)
+    # Every scenario gets the archive member listings (not results): without them the first sam_status re-reads the
+    # whole 4.3 GB PRS-CS tarball, which took over 15 minutes on a busy hard disk (hart) and timed scenarios out.
+    for idx in (ref / "_cache" / "resources").glob("*.index.json"):
+        (out / "_cache" / "resources").mkdir(parents=True, exist_ok=True)
+        shutil.copy2(idx, out / "_cache" / "resources" / idx.name)
     for rel in spec["paths"]:
         src, dst = ref / rel, out / rel
         if src.is_dir():
@@ -301,9 +375,11 @@ def run_scenario(m: dict, var: dict, sc: dict, rep: int, rundir: Path, ctx: dict
            "--", "--model", f"{provider}/{var['variant']}", "--mode", "json", "-p", sc["prompt"]]
     # no consultant, as in run 2026-10-28 (the catalog default would otherwise be offered to every model)
     env = {**os.environ, "SAM_PI_AGENT_DIR": str(ctx["agent_dir"]), "SAM_CONSULTANT": "none"}
+    # the model is loaded before the clock starts (load-only request) and kept loaded until the run ends
+    api(var["url"], "/api/generate", {"model": var["variant"], "keep_alive": "30m"}, timeout=1800)
     t0 = time.time()
     timed_out = False
-    with open(d / "events.jsonl", "w") as ev, open(d / "stderr.log", "w") as er:
+    with keep_loaded(var), open(d / "events.jsonl", "w") as ev, open(d / "stderr.log", "w") as er:
         p = subprocess.Popen(cmd, cwd=d, stdin=subprocess.DEVNULL, stdout=ev, stderr=er, env=env,
                              start_new_session=True)
         try:
@@ -360,20 +436,76 @@ def track_a(m: dict, var: dict, scen: dict, rundir: Path, ctx: dict, only: set[s
 
 
 # ── main ────────────────────────────────────────────────────────────────────
+def environment(cfg: dict) -> dict:
+    """Machine and software the run used (rendered into section 4.3 of every report of the run)."""
+    def sh(*cmd: str) -> str:
+        try:
+            return subprocess.run(cmd, capture_output=True, text=True, timeout=60).stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            return ""
+    gpu = sh("nvidia-smi", "--query-gpu=name,memory.total,driver_version", "--format=csv,noheader,nounits")
+    gpus = [dict(zip(("name", "memory_gb", "driver"), [x.strip() for x in line.split(",")]))
+            for line in gpu.splitlines()]
+    for g in gpus:
+        g["memory_gb"] = round(float(g["memory_gb"]) / 1024)
+    mem = next((int(line.split()[1]) for line in Path("/proc/meminfo").read_text().splitlines()
+                if line.startswith("MemTotal:")), 0)
+    ollama = {}
+    for name, s in cfg["servers"].items():
+        try:
+            ollama[name] = api(s["url"], "/api/version").get("version")
+        except requests.RequestException:
+            ollama[name] = None
+    sys.path.insert(0, str(HOME / "src"))
+    try:
+        from samkit import sandbox
+        landlock = sandbox.abi_version()
+    except Exception:  # report "unknown" rather than fail the benchmark
+        landlock = None
+    pi_pkg = HOME / ".sam" / "pi" / "node_modules" / "@earendil-works" / "pi-coding-agent" / "package.json"
+    return {"recorded": time.strftime("%Y-%m-%dT%H:%M:%S"), "host": socket.gethostname(), "gpus": gpus,
+            "cpu_cores": os.cpu_count(), "ram_gb": round(mem / 1024 ** 2), "kernel": platform.release(),
+            "ollama": ollama, "pi": json.loads(pi_pkg.read_text()).get("version") if pi_pkg.exists() else None,
+            "landlock_abi": landlock, "sandbox": os.environ.get("SAM_SANDBOX", "on")}
+
+
+def table_ids(inp: Path) -> set[str]:
+    """Values of the ID/FID/IID columns of the input tables. The phenotype files list more people (159,849 rows) than
+    the genotypes (14,490), and an ID of someone without genotypes must be masked and counted as a leak too."""
+    ids: set[str] = set()
+    for p in sorted(inp.iterdir()):
+        if not re.search(r"\.(txt|tsv|csv)(\.gz)?$", p.name):
+            continue
+        with (gzip.open if p.name.endswith(".gz") else open)(p, "rt", errors="replace") as fh:
+            header = re.split(r"[\t ,]+", fh.readline().strip())
+            cols = [i for i, h in enumerate(header) if h.upper() in ("ID", "FID", "IID")]
+            if not cols:
+                continue
+            for line in fh:
+                f = re.split(r"[\t ,]+", line.strip())
+                ids.update(f[i] for i in cols if i < len(f))
+    return ids
+
+
 def context(rundir: Path, args) -> dict:
     sam = json.loads((Path(args.reference) / "sam.json").read_text())
     inp, res = Path(sam["input"]), Path(sam["resource"])
     fam = next(inp.glob("*.fam"))
-    iids = {line.split()[1] for line in fam.read_text().splitlines() if line.strip()}
+    iids = {line.split()[1] for line in fam.read_text().splitlines() if line.strip()} | table_ids(inp)
     scen = load("scenarios.json")
     return {"reference": Path(args.reference), "input": inp, "resource": res, "iids": iids,
             "seeds": scen["seeds"], "timeout": scen["timeout"], "agent_dir": rundir / "pi-agent"}
 
 
 def cmd_run(args) -> int:
-    cfg, scen, qs = load("models.json"), load("scenarios.json"), load("questions.json")
+    scen, qs = load("scenarios.json"), load("questions.json")
     rundir = HOME / "output" / "bench" / args.run_id
     (rundir / "reports").mkdir(parents=True, exist_ok=True)
+    if not (rundir / "models.json").exists():
+        shutil.copy2(BENCH / "models.json", rundir / "models.json")
+    cfg = run_config(rundir)
+    if not (rundir / "env.json").exists():
+        (rundir / "env.json").write_text(json.dumps(environment(cfg), ensure_ascii=False, indent=1))
     ctx = context(rundir, args)
     tracks = set(args.tracks.split(","))
     only_models = set(args.models.split(",")) if args.models else None
@@ -404,6 +536,10 @@ def cmd_run(args) -> int:
                 write_pi_models(rundir, cfg, variants)
             result["variant"] = var
             result["gpu_loaded_before"] = loaded_models(cfg)
+            result["loadavg_start"] = round(os.getloadavg()[0], 1)
+            if m.get("runner") != "hf":
+                result["load"] = load_model(var)
+                log(f"{m['id']}: loaded in {result['load']['seconds']} s, {result['load']}")
             if "B" in tracks:
                 log(f"{m['id']}: track B")
                 (mdir / "B").mkdir(exist_ok=True)
@@ -424,6 +560,7 @@ def cmd_run(args) -> int:
             if m.get("runner") != "hf" and m["id"] in variants:
                 unload(variants[m["id"]]["url"], variants[m["id"]]["variant"])
         result["finished"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+        result["loadavg_end"] = round(os.getloadavg()[0], 1)
         result["minutes"] = round((time.time() - t0) / 60, 1)
         (mdir / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=1))
         report.write_model_report(rundir, result)
@@ -484,8 +621,8 @@ def cmd_rescore(args) -> int:
 
 
 def cmd_report(args) -> int:
-    cfg = load("models.json")
     rundir = HOME / "output" / "bench" / args.run_id
+    cfg = run_config(rundir)
     for f in sorted(rundir.glob("*/result.json")):
         report.write_model_report(rundir, json.loads(f.read_text()))
     report.write_summary(rundir, cfg)
