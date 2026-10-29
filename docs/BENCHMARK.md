@@ -52,9 +52,10 @@
 | Llama 4 Scout | 40B 이상 | MoE 109B(활성 17B) · Q4_K_M, 67 GB | 새 계열. Ollama 기본 템플릿 그대로(Track A에 시스템 프롬프트가 전달되지 않음) |
 | Mistral Large 123B (2411) | 40B 이상 | 123B dense · Q4_K_M, 73 GB | Mistral 7B·Small 24B와 비교 |
 | Med42 70B | 40B 이상, 의료 특화 | 70B · Q4_K_M(HF GGUF), 43 GB | 임상 지시 학습 Llama 3 70B. Me-LLaMA 대신 |
-| Nemotron 3.5 Super 120B | 40B 이상 | MoE 120B(활성 12B) · NVFP4, 80 GB | Q4_K_M(90 GB)은 컨텍스트 자리가 없음 |
+| Nemotron 3.5 Super 120B | 40B 이상 | MoE 120B(활성 12B) · Q4_K_M, 90 GB | NVFP4(80 GB)는 Ollama의 MLX(Apple) 전용이라 이 서버에서 받을 수 없어 Q4_K_M으로 시도(GPU에 남는 자리가 작아 CPU 오프로드 가능성, 보고서에 표시). 목록 맨 뒤 |
 | Gemma 4 31B Q8_0 | 양자화 비교 | 31B · Q8_0, 34 GB | 기본 모델의 Q4_K_M과 비교 |
 | Qwen 3.8 27B Q8_0 | 양자화 비교 | 27B · Q8_0, 30 GB | 카탈로그가 설치하는 태그 |
+| Llama 3.3 70B·Llama 3.1 8B·Mistral Large 123B·Mistral Small 3.2 24B (템플릿 수정) | 템플릿 수정 변형 | 원래 모델과 같은 가중치 | 2026-10-29 추가. Ollama 템플릿이 첫 도구 결과 뒤로 도구 목록(Mistral Large는 시스템 프롬프트도)을 넣지 않는 문제를 고친 변형(`docs/ISSUES-2026-10-29.md` #12). 2–5회차 |
 | Llama 4 Scout (템플릿 수정) | 템플릿 수정 변형 | Llama 4 Scout와 같은 가중치 | 2026-10-29 추가. Ollama 템플릿이 도구와 함께 시스템 프롬프트를 버리는 문제를 고친 변형([LLAMA4-TEMPLATE-2026-10-29.md](LLAMA4-TEMPLATE-2026-10-29.md)). 2–5회차에 별도 실행기로 추가 |
 
 제외: Qwen 3.8 Flash-Next 125B-A6B(Q4_K_M 120 GB, NVFP4 105 GB), Llama 4 Maverick·Llama 3.1 405B·Qwen 3.8 2.4T(96 GB 초과),

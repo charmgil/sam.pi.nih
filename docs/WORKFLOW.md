@@ -304,6 +304,7 @@ flowchart TD
 - 같은 유전형으로 다른 표현형을 돌리면 `_qc/<g>/`를 재사용합니다. QC 설정이나 유전형 경로가 바뀌면(`qc_settings.json` 불일치) QC 파일을 지우고 다시 만듭니다.
 - 설정 지문이 바뀌면 이 표현형의 step1/step2/결과/plots/ldsc/loci를 모두 지웁니다(3.3절).
 - 표본 QC는 결측률만 봅니다. 친족 제거, MHC 외 장거리 LD 구간 제외는 없습니다([REVIEW-2026-10-27.md](REVIEW-2026-10-27.md) O1).
+- QC 기준·방법, 이번 데이터에서 단계별로 실제 걸러진 수, 구현되지 않은 QC는 [QC.md](QC.md)에 정리했습니다.
 
 ### 2.6 gwas step1 — regenie 전체 유전체 ridge 회귀
 

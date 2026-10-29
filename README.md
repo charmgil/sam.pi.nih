@@ -69,6 +69,7 @@ cd /projects/NIH/sam.pi.nih
 | [docs/REVIEW-2026-10-27.md](docs/REVIEW-2026-10-27.md) | 디버그·검증 리포트: 이슈와 조치, 외부 기준(KBA 187K) 비교, 로컬 모델 시험 |
 | [docs/ISSUES-2026-10-28.md](docs/ISSUES-2026-10-28.md) | hart 서버 이전·96 GB 벤치마크 확장 중 생긴 이슈와 조치 |
 | [docs/ISSUES-2026-10-29.md](docs/ISSUES-2026-10-29.md) | 벤치마크 반복 실행(2–5회차) 중 생긴 이슈와 조치 |
+| [docs/QC.md](docs/QC.md) | GWAS QC의 기준·방법, 이번 데이터에서 실제로 걸러진 수, 구현되지 않은 QC |
 | [docs/LLAMA4-TEMPLATE-2026-10-29.md](docs/LLAMA4-TEMPLATE-2026-10-29.md) | Llama 4 Scout 채팅 템플릿이 시스템 프롬프트를 버리는 문제: 원인과 수정 |
 | [docs/EXPERT-INPUT.md](docs/EXPERT-INPUT.md) | 도메인 전문가 검토가 필요한 분석 기본값과 벤치마크 정답·채점 기준 |
 | [docs/BENCHMARK.md](docs/BENCHMARK.md) | 로컬 LLM 벤치마크: 설계, 대상 모델, 실행 방법, 결과 위치 |

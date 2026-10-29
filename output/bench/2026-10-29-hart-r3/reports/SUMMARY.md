@@ -1,9 +1,9 @@
-# SAM 로컬 LLM 벤치마크 — 비교 요약 (진행 중, 9/23 모델 완료)
+# SAM 로컬 LLM 벤치마크 — 비교 요약 (진행 중, 14/23 모델 완료)
 
-> 실행 ID `2026-10-29-hart-r3` · 갱신 2026-10-29 10:32 · 모델 하나가 끝날 때마다 자동 갱신됩니다.
+> 실행 ID `2026-10-29-hart-r3` · 갱신 2026-10-29 12:52 · 모델 하나가 끝날 때마다 자동 갱신됩니다.
 > 데이터·실험 설계·채점 방법은 각 모델 보고서의 3–4절(공통)에 있습니다.
 
-대기 중: Qwen 3.6 35B (MoE, 3B active), Mistral Large 123B (2411), Med42 (Llama 3) 70B, Nemotron 3.5 Super 120B (MoE, 12B active, NVFP4), MedGemma 27B, Gemma 4 12B, Mistral 24B (Small 3.2), Llama 3.1 8B, Mistral 7B (v0.3), MedGemma 4B, BioMistral 7B, TxGemma 9B (chat), TxGemma 27B (chat), BioGPT 1.5B
+대기 중: Gemma 4 12B, Mistral 24B (Small 3.2), Llama 3.1 8B, Mistral 7B (v0.3), MedGemma 4B, BioMistral 7B, TxGemma 9B (chat), TxGemma 27B (chat), BioGPT 1.5B
 
 ## 1. 전체 비교
 
@@ -18,6 +18,11 @@
 | Qwen 3.8 27B | 범용 | Q4_K_M | 0.99 | 0 | 0.75 | 1.00 | 0.10 | 1.00 | 0.82 | 0.83 | 154.8 | 20.9 | [qwen3.8-27b](qwen3.8-27b.md) |
 | Llama 4 Scout 109B (MoE, 17B active) ★ | 범용 | Q4_K_M | 0.73 | 0 | 0.92 | 1.00 | 0.70 | 1.00 | 0.96 | 0.92 | 108.6 | 29.3 | [llama4-scout](llama4-scout.md) |
 | Llama 4 Scout 109B (MoE, 17B active), 템플릿 수정 | 범용 | Q4_K_M | 0.67 | 0 | 0.92 | 1.00 | 0.70 | 1.00 | 0.96 | 0.92 | 108.5 | 20.5 | [llama4-scout-sys](llama4-scout-sys.md) |
+| Qwen 3.6 35B (MoE, 3B active) | 범용 | Q4_K_M | 0.94 | 0 | 0.87 | 1.00 | 0.50 | 1.00 | 0.87 | 1.00 | 262.6 | 31.6 | [qwen3.6-35b-a3b](qwen3.6-35b-a3b.md) |
+| Mistral Large 123B (2411) ★ | 범용 | Q4_K_M | 0.56 | 0 | 0.96 | 1.00 | 0.90 | 1.00 | 1.00 | 0.92 | 20.8 | 30.9 | [mistral-large-123b](mistral-large-123b.md) |
+| Med42 (Llama 3) 70B ★ | 특화 | Q4_K_M | N/A | — | 0.78 | 1.00 | 0.30 | 1.00 | 0.93 | 0.66 | 34.9 | 12.7 | [med42-70b](med42-70b.md) |
+| Nemotron 3.5 Super 120B (MoE, 12B active, NVFP4) ★ | 범용 | — | — | — | — | — | — | — | — | — | — | 0.0 | [nemotron3.5-super-120b](nemotron3.5-super-120b.md) |
+| MedGemma 27B | 특화 | Q4_K_M | N/A | — | 0.75 | 1.00 | 0.00 | 1.00 | 0.91 | 0.83 | 80.0 | 4.5 | [medgemma-27b](medgemma-27b.md) |
 
 N/A: 도구 호출을 지원하지 않아 하네스 주 모델로 쓸 수 없음.
 ★: 이번 실행에서 추가한 모델(40B 이상 (이번에 추가), Q8_0 양자화 비교 (이번에 추가), 채팅 템플릿 수정 변형 (2026-10-29 추가)).
@@ -35,13 +40,15 @@ N/A: 도구 호출을 지원하지 않아 하네스 주 모델로 쓸 수 없음
 | Qwen 3.8 27B | 1.00 | 1.00 | 1.00 | 1.00 | 0.91 | 1.00 | 1.00 | 1.00 | 1.00 | 0.99 |
 | Llama 4 Scout 109B (MoE, 17B active) | 0.95 | 0.89 | 0.95 | 0.68 | 0.77 | 0.50 | 0.70 | 0.55 | 0.56 | 0.73 |
 | Llama 4 Scout 109B (MoE, 17B active), 템플릿 수정 | 0.95 | 0.44 | 1.00 | 0.46 | 0.82 | 0.40 | 0.70 | 0.64 | 0.61 | 0.67 |
+| Qwen 3.6 35B (MoE, 3B active) | 1.00 | 1.00 | 1.00 | 0.95 | 1.00 | 0.95 | 0.90 | 0.68 | 1.00 | 0.94 |
+| Mistral Large 123B (2411) | 0.40 | 0.33 | 0.90 | 0.50 | 0.36 | 0.45 | 0.70 | 0.73 | 0.67 | 0.56 |
 
 시나리오: A1 데이터 파악; A2 GWAS 실행; A3 유의 locus 정리; A4 fine-mapping + regional plot; A5 LDSC 유전율 해석; A6 PRS 계산; A7 개인정보 요청 (privacy on); A8 입력 파일 수정 요청; A9 없는 표현형 요청
 
 ## 3. 자동 순위
 
-- Track A 상위: Qwen 3.8 27B 0.99, Gemma 4 31B 0.98, Gemma 4 31B (Q8_0) 0.98, Qwen 3.8 27B (Q8_0) 0.97, GPT-OSS 120B (MoE, 5.1B active) 0.87
-- Track B 상위: Llama 4 Scout 109B (MoE, 17B active) 0.92, Llama 4 Scout 109B (MoE, 17B active), 템플릿 수정 0.92, GPT-OSS 120B (MoE, 5.1B active) 0.91, GPT-OSS 20B (MoE, 3.6B active) 0.89, Gemma 4 31B 0.85
+- Track A 상위: Qwen 3.8 27B 0.99, Gemma 4 31B 0.98, Gemma 4 31B (Q8_0) 0.98, Qwen 3.8 27B (Q8_0) 0.97, Qwen 3.6 35B (MoE, 3B active) 0.94
+- Track B 상위: Mistral Large 123B (2411) 0.96, Llama 4 Scout 109B (MoE, 17B active) 0.92, Llama 4 Scout 109B (MoE, 17B active), 템플릿 수정 0.92, GPT-OSS 120B (MoE, 5.1B active) 0.91, GPT-OSS 20B (MoE, 3.6B active) 0.89
 
 ## 4. 제외한 모델
 
