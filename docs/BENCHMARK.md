@@ -49,12 +49,13 @@
 |---|---|---|---|
 | GPT-OSS 120B | 40B 이상 | MoE 117B(활성 5.1B) · MXFP4, 65 GB | GPT-OSS 20B와 비교 |
 | Llama 3.3 70B | 40B 이상 | 70B · Q4_K_M, 43 GB | Llama 3.1 8B와 비교. Llama 3.1 70B는 같은 구조의 후속인 3.3으로 대표 |
-| Llama 4 Scout | 40B 이상 | MoE 109B(활성 17B) · Q4_K_M, 67 GB | 새 계열 |
+| Llama 4 Scout | 40B 이상 | MoE 109B(활성 17B) · Q4_K_M, 67 GB | 새 계열. Ollama 기본 템플릿 그대로(Track A에 시스템 프롬프트가 전달되지 않음) |
 | Mistral Large 123B (2411) | 40B 이상 | 123B dense · Q4_K_M, 73 GB | Mistral 7B·Small 24B와 비교 |
 | Med42 70B | 40B 이상, 의료 특화 | 70B · Q4_K_M(HF GGUF), 43 GB | 임상 지시 학습 Llama 3 70B. Me-LLaMA 대신 |
 | Nemotron 3.5 Super 120B | 40B 이상 | MoE 120B(활성 12B) · NVFP4, 80 GB | Q4_K_M(90 GB)은 컨텍스트 자리가 없음 |
 | Gemma 4 31B Q8_0 | 양자화 비교 | 31B · Q8_0, 34 GB | 기본 모델의 Q4_K_M과 비교 |
 | Qwen 3.8 27B Q8_0 | 양자화 비교 | 27B · Q8_0, 30 GB | 카탈로그가 설치하는 태그 |
+| Llama 4 Scout (템플릿 수정) | 템플릿 수정 변형 | Llama 4 Scout와 같은 가중치 | 2026-10-29 추가. Ollama 템플릿이 도구와 함께 시스템 프롬프트를 버리는 문제를 고친 변형([LLAMA4-TEMPLATE-2026-10-29.md](LLAMA4-TEMPLATE-2026-10-29.md)). 2–5회차에 별도 실행기로 추가 |
 
 제외: Qwen 3.8 Flash-Next 125B-A6B(Q4_K_M 120 GB, NVFP4 105 GB), Llama 4 Maverick·Llama 3.1 405B·Qwen 3.8 2.4T(96 GB 초과),
 GLM 5.3·DeepSeek V4.1 Flash·MiniMax M3.1 Flash·Mistral Large 4(Ollama에서 클라우드 전용), GPT-Rosalind, Me-LLaMA.
@@ -78,9 +79,18 @@ setsid nohup ./sam bench run --run-id 2026-10-28-hart > .sam/bench/run-2026-10-2
 # 3) 채점 규칙이나 보고서 템플릿을 고친 뒤 모델을 다시 돌리지 않고 재채점·재작성
 ./sam bench rescore --run-id 2026-10-28-hart
 ./sam bench report --run-id 2026-10-28-hart
+
+# 4) 반복 실행: 회차마다 새 실행 ID와 Track B seed. 동시에 띄워도 GPU에는 한 번에 한 모델(앞 회차 우선)
+setsid nohup ./sam bench run --run-id 2026-10-29-hart-r3 --repeat 3 --seed 8 > .sam/bench/run-2026-10-29-hart-r3.log 2>&1 &
+./sam bench aggregate --runs 2026-10-28,2026-10-28-hart,2026-10-29-hart-r3,2026-10-29-hart-r4,2026-10-29-hart-r5   # → output/bench/repeats/
 ```
 
 - 같은 `--run-id`로 다시 실행하면 끝난 모델·시나리오는 건너뜁니다(중단 후 이어서 실행).
+- 반복 실행: `--repeat N --seed S`는 처음 시작할 때 실행 폴더의 `run.json`에 고정되고, 같은 실행 ID로 다른 값을 주면 거부합니다.
+  여러 회차를 함께 띄우면 `.sam/bench/gpu/` 잠금으로 GPU에는 한 번에 한 모델만 올라가고, 기다리는 회차 중 번호가 작은 쪽이 먼저 씁니다.
+  앞 회차가 내려받기를 기다리는 동안 뒤 회차가 이미 받은 모델을 돌려 GPU가 놀지 않습니다.
+- `aggregate`는 여러 실행의 `result.json`을 모아 모델별 mean ± SD(표본 표준편차)를 냅니다. 점수는 모델이 있는 모든 회차로,
+  생성 속도는 최근 회차와 같은 GPU의 회차만으로 계산합니다.
 - `bench/pull-models.sh`는 `models.json`에서 `server: bench`인 모델을 순서대로 받습니다. 받기가 끝나면 `.sam/bench/pulled/<태그>`,
   5회 실패하면 `<태그>.failed`를 만들고, 실행기는 실패한 모델을 기다리지 않고 오류로 기록한 뒤 다음 모델로 넘어갑니다.
   다른 Ollama로 받으려면 `OLLAMA_HOST=127.0.0.1:<포트> bench/pull-models.sh`.
@@ -89,6 +99,10 @@ setsid nohup ./sam bench run --run-id 2026-10-28-hart > .sam/bench/run-2026-10-2
   hart 서버에서 다시 만든 결과는 옛 서버 결과와 요약값 223개가 모두 같았습니다(옛 결과: `output/bench/reference-2026-10-28/`).
 - `bench/ollama-serve.sh`는 적재 제한 시간을 30분(`OLLAMA_LOAD_TIMEOUT`)으로 둡니다. 모델 저장소가 하드 디스크에 있으면 60–80 GB 모델을
   읽는 데 기본값 5분보다 오래 걸려 `500` 오류가 납니다(hart 서버 `/projects`).
+- 서버 RAM보다 큰 모델은 `models.json` 항목에 `"parameters": {"use_mmap": false}`를 둡니다(벤치마크 변형의 Ollama 매개변수로 들어감).
+  mmap으로 읽으면 페이지가 밀려나며 다시 읽혀 30분 안에 적재되지 않을 수 있습니다(hart, Mistral Large 73 GB / RAM 60 GB). 생성 결과에는 영향이 없습니다.
+- 모델의 채팅 템플릿을 고쳐야 하면 `bench/chat-templates/<이름>.gotmpl`에 두고 항목에 `"template": "<이름>.gotmpl"`을 적습니다
+  (예: Llama 4 Scout, [LLAMA4-TEMPLATE-2026-10-29.md](LLAMA4-TEMPLATE-2026-10-29.md)). 원래 모델은 기본 설정 결과로 함께 둡니다.
 - 모든 시나리오는 정답 실행의 압축 파일 목록 캐시(`_cache/resources/*.index.json`)를 넣고 시작합니다. 없으면 빈 출력 폴더의 첫 `sam_status`가
   4.3 GB PRS-CS 묶음을 다시 풀어 읽는데, 붐비는 하드 디스크에서는 15분이 넘어 시나리오가 시간 초과됩니다(2026-10-28-hart).
 - 벤치마크 중에는 같은 GPU를 다른 작업이 쓰지 않는 것이 좋습니다(속도 지표에 영향). 실행기는 모델마다 적재 직후 GPU 메모리 사용량과
@@ -108,7 +122,8 @@ output/bench/<실행 ID>/
 ├── pi-agent/models.json      벤치마크용 pi 모델 설정 (사용자 설정 .pi-agent와 분리)
 ├── variants.json             모델별 Ollama 변형(bench-*)과 양자화·기능
 ├── models.json               이 실행을 시작할 때의 bench/models.json 사본 (보고서는 이것을 씀)
-└── env.json                  이 실행의 GPU·CPU·RAM·Ollama·pi·Landlock (보고서 4.3절)
+├── env.json                  이 실행의 GPU·CPU·RAM·Ollama·pi·Landlock (보고서 4.3절)
+└── run.json                  반복 회차 번호와 Track B seed
 ```
 
 Track A 이벤트 기록에는 로컬 모델이 읽은 개인 단위 값이 들어 있을 수 있습니다. `output/` 아래에만 두고(git 제외),

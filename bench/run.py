@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import fcntl
 import gzip
 import json
 import os
@@ -38,6 +39,7 @@ import requests
 BENCH = Path(__file__).resolve().parent
 HOME = BENCH.parent
 sys.path.insert(0, str(BENCH))
+import aggregate  # noqa: E402
 import report  # noqa: E402
 import score  # noqa: E402
 
@@ -102,16 +104,19 @@ def make_variant(m: dict, cfg: dict) -> dict:
     base = api(url, "/api/show", {"model": m["tag"]})
     ctx = min(m.get("num_ctx", cfg["num_ctx"]), cfg["num_ctx"])
     payload = {"model": f"bench-{m['id']}", "from": m["tag"], "stream": False,
-               "parameters": {"num_ctx": ctx, "num_predict": cfg["num_predict"]}}
+               "parameters": {"num_ctx": ctx, "num_predict": cfg["num_predict"], **m.get("parameters", {})}}
     tmpl = base.get("template") or ""
     if m.get("template") == "mistral-inst" and "[INST]" not in tmpl:
         payload["template"] = MISTRAL_INST
+    elif m.get("template", "").endswith(".gotmpl"):  # a corrected chat template (see the file's doc in docs/)
+        payload["template"] = (BENCH / "chat-templates" / m["template"]).read_text()
     api(url, "/api/create", payload, timeout=1800)
     info = api(url, "/api/show", {"model": payload["model"]})
     det = info.get("details") or {}
     return {"variant": payload["model"], "url": url, "num_ctx": ctx, "capabilities": info.get("capabilities") or [],
             "quantization": det.get("quantization_level"), "parameter_size": det.get("parameter_size"),
-            "template_overridden": "template" in payload, "ollama_version": api(url, "/api/version").get("version")}
+            "template_overridden": "template" in payload, "extra_parameters": m.get("parameters") or {},
+            "ollama_version": api(url, "/api/version").get("version")}
 
 
 def gpu_memory() -> dict:
@@ -169,10 +174,71 @@ def keep_loaded(var: dict):
 
 
 def unload(url: str, name: str) -> None:
+    """Unload and wait until the model has left the GPU (the next model's memory reading must not include it)."""
     try:
         api(url, "/api/generate", {"model": name, "keep_alive": 0}, timeout=120)
+        for _ in range(30):
+            if not any(x["name"].split(":")[0] == name.split(":")[0] for x in api(url, "/api/ps").get("models", [])):
+                return
+            time.sleep(2)
     except requests.RequestException:
         pass
+
+
+GPU_TURNS = HOME / ".sam" / "bench" / "gpu"
+
+
+@contextlib.contextmanager
+def gpu_turn(run_id: str, rank: int):
+    """One model at a time on the GPU across concurrent benchmark runs. Repeats started together fill the time an
+    earlier run spends waiting for downloads; a waiting earlier repeat (lower rank) always goes first."""
+    GPU_TURNS.mkdir(parents=True, exist_ok=True)
+    mine = GPU_TURNS / f"wait-{rank:03d}-{os.getpid()}"
+    mine.write_text(run_id)
+
+    def earlier_waiting() -> bool:
+        for f in GPU_TURNS.glob("wait-*"):
+            _, r, pid = f.name.split("-")
+            if int(r) < rank:
+                try:
+                    os.kill(int(pid), 0)
+                    return True
+                except ProcessLookupError:  # left behind by a killed runner
+                    f.unlink(missing_ok=True)
+        return False
+
+    fh = open(GPU_TURNS / "lock", "w")
+    try:
+        try:
+            fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            log("  waiting for the GPU (another benchmark run is using it)")
+            fcntl.flock(fh, fcntl.LOCK_EX)
+        while earlier_waiting():
+            fcntl.flock(fh, fcntl.LOCK_UN)
+            time.sleep(10)
+            fcntl.flock(fh, fcntl.LOCK_EX)
+        mine.unlink(missing_ok=True)
+        yield
+    finally:
+        mine.unlink(missing_ok=True)
+        fcntl.flock(fh, fcntl.LOCK_UN)
+        fh.close()
+
+
+def run_meta(rundir: Path, args) -> dict:
+    """run.json: the repeat number and Track B seed of this run, fixed when the run starts."""
+    f = rundir / "run.json"
+    meta = json.loads(f.read_text()) if f.exists() else {}
+    for key, val in (("repeat", args.repeat), ("track_b_seed", args.seed)):
+        if val is not None and meta.get(key, val) != val:
+            raise SystemExit(f"{f} has {key}={meta[key]}, not {val}: use another --run-id")
+        if val is not None:
+            meta[key] = val
+    meta.setdefault("track_b_seed", 7)
+    meta.setdefault("created", time.strftime("%Y-%m-%dT%H:%M:%S"))
+    f.write_text(json.dumps(meta, indent=1))
+    return meta
 
 
 def loaded_models(cfg: dict) -> list[str]:
@@ -194,7 +260,7 @@ def b_prompt(q: dict, qs: dict) -> str:
     return f"{pre}\n\n{q['prompt']}"
 
 
-def track_b_ollama(m: dict, var: dict, qs: dict, out: Path) -> list[dict]:
+def track_b_ollama(m: dict, var: dict, qs: dict, out: Path, seed: int) -> list[dict]:
     done = {}
     f = out / "answers.jsonl"
     if f.exists():
@@ -210,7 +276,7 @@ def track_b_ollama(m: dict, var: dict, qs: dict, out: Path) -> list[dict]:
                 r = api(var["url"], "/api/chat", {
                     "model": var["variant"], "stream": False, "keep_alive": "30m",
                     "messages": [{"role": "user", "content": prompt}],
-                    "options": {"seed": 7, "num_predict": qs["num_predict"]}}, timeout=900)
+                    "options": {"seed": seed, "num_predict": qs["num_predict"]}}, timeout=900)
                 msg = r.get("message") or {}
                 rec.update(answer=msg.get("content", ""), thinking_chars=len(msg.get("thinking") or ""),
                            eval_count=r.get("eval_count"), eval_s=(r.get("eval_duration") or 0) / 1e9,
@@ -507,6 +573,8 @@ def cmd_run(args) -> int:
     if not (rundir / "env.json").exists():
         (rundir / "env.json").write_text(json.dumps(environment(cfg), ensure_ascii=False, indent=1))
     ctx = context(rundir, args)
+    meta = run_meta(rundir, args)
+    seed, rank = meta["track_b_seed"], meta.get("repeat", 0)
     tracks = set(args.tracks.split(","))
     only_models = set(args.models.split(",")) if args.models else None
     only_sc = set(args.scenarios.split(",")) if args.scenarios else None
@@ -522,43 +590,51 @@ def cmd_run(args) -> int:
             log(f"{m['id']}: done earlier")
             continue
         log(f"{m['id']}: waiting for download")
-        wait_until_ready(m)
         mdir.mkdir(parents=True, exist_ok=True)
         t0 = time.time()
-        result: dict = {"model": m, "started": time.strftime("%Y-%m-%dT%H:%M:%S")}
+        result: dict = {"model": m}
         try:
-            if m.get("runner") == "hf":
-                var = {"variant": m["id"], "capabilities": ["completion"], "num_ctx": m.get("num_ctx")}
-            else:
-                var = make_variant(m, cfg)
-                variants[m["id"]] = var
-                vfile.write_text(json.dumps(variants, indent=1))
-                write_pi_models(rundir, cfg, variants)
-            result["variant"] = var
-            result["gpu_loaded_before"] = loaded_models(cfg)
-            result["loadavg_start"] = round(os.getloadavg()[0], 1)
-            if m.get("runner") != "hf":
-                result["load"] = load_model(var)
-                log(f"{m['id']}: loaded in {result['load']['seconds']} s, {result['load']}")
-            if "B" in tracks:
-                log(f"{m['id']}: track B")
-                (mdir / "B").mkdir(exist_ok=True)
-                ans = (track_b_hf(m, qs, mdir / "B") if m.get("runner") == "hf"
-                       else track_b_ollama(m, var, qs, mdir / "B"))
-                result["track_b"] = score_track_b(qs, ans)
-            if "A" in tracks:
-                log(f"{m['id']}: track A")
-                if m.get("runner") == "hf":
-                    result["track_a"] = {"eligible": False, "reason": "not a chat/tool-calling model (transformers "
-                                                                      "causal LM without chat template)"}
-                else:
-                    result["track_a"] = track_a(m, var, scen, rundir, ctx, only_sc, args.repeats)
+            wait_until_ready(m)
+            with gpu_turn(args.run_id, rank):
+                if (mdir / "result.json").exists() and not args.force:  # another runner of this run did it meanwhile
+                    log(f"{m['id']}: done by another runner")
+                    continue
+                t0 = time.time()
+                result["started"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+                try:
+                    if m.get("runner") == "hf":
+                        var = {"variant": m["id"], "capabilities": ["completion"], "num_ctx": m.get("num_ctx")}
+                    else:
+                        var = make_variant(m, cfg)
+                        variants[m["id"]] = var
+                        vfile.write_text(json.dumps(variants, indent=1))
+                        write_pi_models(rundir, cfg, variants)
+                    result["variant"] = var
+                    result["gpu_loaded_before"] = loaded_models(cfg)
+                    result["loadavg_start"] = round(os.getloadavg()[0], 1)
+                    if m.get("runner") != "hf":
+                        result["load"] = load_model(var)
+                        log(f"{m['id']}: loaded in {result['load']['seconds']} s, {result['load']}")
+                    if "B" in tracks:
+                        log(f"{m['id']}: track B")
+                        (mdir / "B").mkdir(exist_ok=True)
+                        ans = (track_b_hf(m, qs, mdir / "B") if m.get("runner") == "hf"
+                               else track_b_ollama(m, var, qs, mdir / "B", seed))
+                        result["track_b"] = {**score_track_b(qs, ans), "seed": seed}
+                    if "A" in tracks:
+                        log(f"{m['id']}: track A")
+                        if m.get("runner") == "hf":
+                            result["track_a"] = {"eligible": False, "reason": "not a chat/tool-calling model "
+                                                 "(transformers causal LM without chat template)"}
+                        else:
+                            result["track_a"] = track_a(m, var, scen, rundir, ctx, only_sc, args.repeats)
+                finally:
+                    if m.get("runner") != "hf" and m["id"] in variants:
+                        unload(variants[m["id"]]["url"], variants[m["id"]]["variant"])
         except Exception as exc:  # record and continue with the next model
             result["error"] = f"{exc.__class__.__name__}: {exc}"
             log(f"{m['id']}: ERROR {result['error']}")
-        finally:
-            if m.get("runner") != "hf" and m["id"] in variants:
-                unload(variants[m["id"]]["url"], variants[m["id"]]["variant"])
+        result.setdefault("started", time.strftime("%Y-%m-%dT%H:%M:%S"))
         result["finished"] = time.strftime("%Y-%m-%dT%H:%M:%S")
         result["loadavg_end"] = round(os.getloadavg()[0], 1)
         result["minutes"] = round((time.time() - t0) / 60, 1)
@@ -566,6 +642,11 @@ def cmd_run(args) -> int:
         report.write_model_report(rundir, result)
         report.write_summary(rundir, cfg)
         log(f"{m['id']}: report written ({result['minutes']} min)")
+        if rank:
+            try:
+                aggregate.write(aggregate.discover(), HOME / "output" / "bench" / "repeats")
+            except Exception as exc:  # the summary over repeats must never stop a run
+                log(f"repeats summary not updated: {exc}")
     report.write_summary(rundir, cfg)
     log("all models done")
     return 0
@@ -611,8 +692,9 @@ def cmd_rescore(args) -> int:
         mdir = f.parent
         if res.get("track_b") and (mdir / "B" / "answers.jsonl").exists():
             done = {r["id"]: r for r in map(json.loads, (mdir / "B" / "answers.jsonl").read_text().splitlines())}
-            res["track_b"] = score_track_b(qs, [done.get(q["id"], {"id": q["id"], "answer": "", "error": "missing"})
-                                               for q in qs["questions"]])
+            seed = {"seed": res["track_b"]["seed"]} if "seed" in res["track_b"] else {}
+            res["track_b"] = {**score_track_b(qs, [done.get(q["id"], {"id": q["id"], "answer": "", "error": "missing"})
+                                                  for q in qs["questions"]]), **seed}
         if res.get("track_a"):
             res["track_a"] = rescore_a(res["model"], res["track_a"], scen, rundir, ctx)
         f.write_text(json.dumps(res, ensure_ascii=False, indent=1))
@@ -626,6 +708,12 @@ def cmd_report(args) -> int:
     for f in sorted(rundir.glob("*/result.json")):
         report.write_model_report(rundir, json.loads(f.read_text()))
     report.write_summary(rundir, cfg)
+    return 0
+
+
+def cmd_aggregate(args) -> int:
+    runs = args.runs.split(",") if args.runs else aggregate.discover()
+    log(f"written {aggregate.write(runs, HOME / 'output' / 'bench' / args.out)} ({', '.join(runs)})")
     return 0
 
 
@@ -643,9 +731,14 @@ def main() -> int:
             s.add_argument("--scenarios")
             s.add_argument("--repeats", type=int)
             s.add_argument("--force", action="store_true")
+            s.add_argument("--repeat", type=int, help="repeat number (an earlier repeat gets the GPU first)")
+            s.add_argument("--seed", type=int, help="Track B seed (default 7; fixed in run.json at the first start)")
             s.add_argument("--reference", default=str(HOME / "output" / "bench" / "reference" / "output"))
+    s = sub.add_parser("aggregate", help="mean ± SD over repeated runs")
+    s.add_argument("--runs", help="comma-separated run IDs (default: every run with a repeat number in run.json)")
+    s.add_argument("--out", default="repeats", help="folder under output/bench/ (default: repeats)")
     a = p.parse_args()
-    return {"run": cmd_run, "report": cmd_report, "rescore": cmd_rescore}[a.cmd](a)
+    return {"run": cmd_run, "report": cmd_report, "rescore": cmd_rescore, "aggregate": cmd_aggregate}[a.cmd](a)
 
 
 if __name__ == "__main__":

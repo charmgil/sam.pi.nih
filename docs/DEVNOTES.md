@@ -17,7 +17,7 @@
 | 읽기 전용 보장 | 입력·리소스 쓰기를 **커널(Linux Landlock)** 이 막음(`src/samkit/sandbox.py`, R40). 가드는 먼저 거절하고 이유를 설명 |
 | 기본 모델 | 로컬 **Gemma 4 31B**(`ollama/sam-gemma4-31b`), 에이전트·자문 공용. 클라우드 모델은 쓰지 않음(팀 결정) |
 | 로컬 LLM 벤치마크 | 14개 모델 완료(실행 ID `2026-10-28`). 종합 보고서 `output/bench/2026-10-28/reports/FINAL.md`(git에 있음) |
-| 문서 | README, SETUP, USAGE, USECASES, WORKFLOW, DESIGN, TOOLS, MODELS, BENCHMARK, EVALUATION, REVIEW-2026-10-27, ISSUES-2026-10-28, EXPERT-INPUT, 이 문서 |
+| 문서 | README, SETUP, USAGE, USECASES, WORKFLOW, DESIGN, TOOLS, MODELS, BENCHMARK, EVALUATION, REVIEW-2026-10-27, ISSUES-2026-10-28, ISSUES-2026-10-29, LLAMA4-TEMPLATE-2026-10-29, EXPERT-INPUT, 이 문서 |
 | 테스트 | `./sam test`: Python 43개 + 가드 14개 통과, `ruff check src tests bench` 통과 |
 
 검증에 쓴 서버: NVIDIA RTX PRO 5000 Blackwell 48 GB, RAM 123 GB, 16코어, Debian 13(커널 6.12), Ollama 0.40.11(`/usr/local/bin/ollama`,

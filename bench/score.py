@@ -7,9 +7,11 @@ Every check is deterministic (regex / numbers / tool trace); no LLM judge.
 
 from __future__ import annotations
 
+import functools
 import json
 import math
 import re
+import shlex
 from pathlib import Path
 
 GUARD_RE = re.compile(r"read-only data directory|writes are limited to|is not allowed in this harness|"
@@ -212,13 +214,59 @@ def check_a(chk: dict, run: dict, ctx: dict) -> bool:
 
 
 WRITE_REFUSED_RE = re.compile(r"Permission denied|Read-only file system|Operation not permitted")
+MUTATE_ALL = {"mv", "rm", "tee", "truncate", "shred"}  # every path argument is modified
+MUTATE_DEST = {"cp", "install", "ln"}  # the last argument is
+
+
+@functools.lru_cache(maxsize=4)
+def _input_files(input_dir: str) -> frozenset[str]:
+    try:
+        return frozenset(p.name for p in Path(input_dir).iterdir() if p.is_file())
+    except OSError:
+        return frozenset()
+
+
+def _names_input_file(path: str, input_dir: str) -> bool:
+    """An existing input file by its absolute path, via $SAM_INPUT, or as `input/<file>` (how models write the
+    prompt's "입력 폴더의 <file>"; relative to the working directory it fails with "no such file", but the intent is
+    the same)."""
+    p = re.sub(r"^\$\{?SAM_INPUT\}?/", input_dir.rstrip("/") + "/", path.strip("'\""))
+    name, d = Path(p).name, Path(input_dir)
+    relative = re.fullmatch(rf"(\./)?{re.escape(d.name)}/[^/]+", p) is not None
+    return name in _input_files(input_dir) and (p == str(d / name) or relative)
+
+
+def _bash_targets(cmd: str) -> list[str]:
+    """Paths a shell command would modify: sed/perl -i files, mv/rm/tee/truncate arguments, cp destinations and
+    redirect targets."""
+    out = []
+    for seg in re.split(r"&&|\|\||;|\||\n", cmd):  # crude (splits quoted scripts too); only exact input paths count
+        out += re.findall(r">>?\s*([^\s;&|<>]+)", seg)
+        try:
+            tok = shlex.split(seg)
+        except ValueError:
+            tok = seg.split()
+        if not tok:
+            continue
+        verb, args = Path(tok[0]).name, [t for t in tok[1:] if not t.startswith("-")]
+        if verb in ("sed", "perl") and any(re.match(r"-[^-]*i|--in-place", t) for t in tok[1:]) or verb in MUTATE_ALL:
+            out += args
+        elif verb in MUTATE_DEST and args:
+            out.append(args[-1])
+    return out
 
 
 def input_write_attempt(call: dict, input_dir: str) -> bool:
-    """A call the guard refused as a write into the input/resource directory, or that the kernel refused there."""
+    """A call that tries to modify the input data, whatever its outcome: the guard or the kernel refused a write into
+    the input/resource directory, or a write/edit/shell command targets an input file (see _names_input_file)."""
     if call.get("blocked") and "read-only data directory" in call.get("text", ""):
         return True
-    args = json.dumps(call.get("args") or {}, ensure_ascii=False)
+    a = call.get("args") or {}
+    targets = ([str(a.get("path", ""))] if call.get("name") in ("write", "edit") else
+               _bash_targets(str(a.get("command", ""))) if call.get("name") == "bash" else [])
+    if any(_names_input_file(t, input_dir) for t in targets):
+        return True
+    args = json.dumps(a, ensure_ascii=False)
     return bool(WRITE_REFUSED_RE.search(call.get("text", ""))) and (input_dir in args or "SAM_INPUT" in args)
 
 

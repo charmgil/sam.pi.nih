@@ -10,7 +10,8 @@
   "groups": {
     "large": "40B 이상 (이번에 추가)",
     "quant": "Q8_0 양자화 비교 (이번에 추가)",
-    "base": "2026-10-28 실행 모델 (재실행)"
+    "base": "2026-10-28 실행 모델 (재실행)",
+    "template": "채팅 템플릿 수정 변형 (2026-10-29 추가)"
   },
   "models": [
     {"id": "gemma4-31b", "family": "Gemma 4", "size": "31B", "kind": "general", "group": "base",
@@ -33,12 +34,17 @@
      "server": "bench", "tag": "qwen3.8:27b", "source": "Ollama library", "license": "Apache-2.0"},
     {"id": "llama4-scout", "family": "Llama 4", "size": "Scout 109B (MoE, 17B active)", "kind": "general", "group": "large",
      "server": "bench", "tag": "llama4:scout", "source": "Ollama library", "license": "Llama 4 Community License"},
+    {"id": "llama4-scout-sys", "family": "Llama 4", "size": "Scout 109B (MoE, 17B active), 템플릿 수정", "kind": "general",
+     "group": "template", "server": "bench", "tag": "llama4:scout", "source": "Ollama library",
+     "license": "Llama 4 Community License", "template": "llama4-system.gotmpl",
+     "note": "same weights as llama4-scout; Ollama's template drops the system prompt when tools are given, this variant keeps it (docs/LLAMA4-TEMPLATE-2026-10-29.md)"},
     {"id": "qwen3.6-35b-a3b", "family": "Qwen 3.6", "size": "35B (MoE, 3B active)", "kind": "general", "group": "base",
      "server": "bench", "tag": "qwen3.6:35b-a3b-q4_K_M", "source": "Ollama library", "license": "Apache-2.0",
      "note": "overwrote an input file in run 2026-10-28 (guard only); this run has the kernel read-only protection"},
     {"id": "mistral-large-123b", "family": "Mistral", "size": "Large 123B (2411)", "kind": "general", "group": "large",
      "server": "bench", "tag": "mistral-large:123b", "source": "Ollama library", "license": "Mistral Research License",
-     "note": "dense 123B; compare with mistral-7b and mistral-small3.2-24b"},
+     "parameters": {"use_mmap": false},
+     "note": "dense 123B; compare with mistral-7b and mistral-small3.2-24b. use_mmap false: 73 GB > 60 GB RAM, the mmap load did not finish in 30 min (2026-10-29)"},
     {"id": "med42-70b", "family": "Med42 (Llama 3)", "size": "70B", "kind": "biomedical", "group": "large",
      "server": "bench", "tag": "hf.co/mradermacher/Llama3-Med42-70B-GGUF:Q4_K_M",
      "source": "Hugging Face GGUF (mradermacher, from m42-health/Llama3-Med42-70B)", "license": "Llama 3 Community License",
@@ -46,7 +52,8 @@
     {"id": "nemotron3.5-super-120b", "family": "Nemotron 3.5", "size": "Super 120B (MoE, 12B active, NVFP4)", "kind": "general",
      "group": "large", "server": "bench", "tag": "nemotron-3.5-super:120b-a12b-nvfp4", "source": "Ollama library",
      "license": "NVIDIA Open Model License",
-     "note": "NVFP4 (79.6 GB) because Q4_K_M (90.2 GB) leaves no room for the context; hybrid Mamba-Transformer MoE"},
+     "parameters": {"use_mmap": false},
+     "note": "NVFP4 (79.6 GB) because Q4_K_M (90.2 GB) leaves no room for the context; hybrid Mamba-Transformer MoE. use_mmap false: larger than RAM"},
     {"id": "medgemma-27b", "family": "MedGemma", "size": "27B", "kind": "biomedical", "group": "base",
      "server": "bench", "tag": "medgemma:27b", "source": "Ollama library", "license": "Health AI Developer Foundations terms"},
     {"id": "gemma4-12b", "family": "Gemma 4", "size": "12B", "kind": "general", "group": "base",

@@ -1,9 +1,9 @@
-# SAM 로컬 LLM 벤치마크 — 비교 요약 (진행 중, 6/22 모델 완료)
+# SAM 로컬 LLM 벤치마크 — 비교 요약 (진행 중, 14/23 모델 완료)
 
-> 실행 ID `2026-10-28-hart` · 갱신 2026-10-29 00:45 · 모델 하나가 끝날 때마다 자동 갱신됩니다.
+> 실행 ID `2026-10-28-hart` · 갱신 2026-10-29 10:36 · 모델 하나가 끝날 때마다 자동 갱신됩니다.
 > 데이터·실험 설계·채점 방법은 각 모델 보고서의 3–4절(공통)에 있습니다.
 
-대기 중: Qwen 3.8 27B, Llama 4 Scout 109B (MoE, 17B active), Qwen 3.6 35B (MoE, 3B active), Mistral Large 123B (2411), Med42 (Llama 3) 70B, Nemotron 3.5 Super 120B (MoE, 12B active, NVFP4), MedGemma 27B, Gemma 4 12B, Mistral 24B (Small 3.2), Llama 3.1 8B, Mistral 7B (v0.3), MedGemma 4B, BioMistral 7B, TxGemma 9B (chat), TxGemma 27B (chat), BioGPT 1.5B
+대기 중: Gemma 4 12B, Mistral 24B (Small 3.2), Llama 3.1 8B, Mistral 7B (v0.3), MedGemma 4B, BioMistral 7B, TxGemma 9B (chat), TxGemma 27B (chat), BioGPT 1.5B
 
 ## 1. 전체 비교
 
@@ -15,9 +15,17 @@
 | Llama 3.3 70B ★ | 범용 | Q4_K_M | 0.81 | 0 | 0.84 | 1.00 | 0.30 | 1.00 | 1.00 | 0.92 | 35.1 | 35.3 | [llama3.3-70b](llama3.3-70b.md) |
 | GPT-OSS 20B (MoE, 3.6B active) | 범용 | MXFP4 | 0.79 | 0 | 0.84 | 1.00 | 0.40 | 1.00 | 0.89 | 0.92 | 285.3 | 54.1 | [gpt-oss-20b](gpt-oss-20b.md) |
 | Qwen 3.8 27B (Q8_0) ★ | 범용 | Q8_0 | 0.97 | 0 | 0.77 | 1.00 | 0.10 | 1.00 | 0.89 | 0.87 | 51.4 | 48.0 | [qwen3.8-27b-q8](qwen3.8-27b-q8.md) |
+| Qwen 3.8 27B | 범용 | Q4_K_M | 0.98 | 0 | 0.75 | 1.00 | 0.10 | 1.00 | 0.80 | 0.83 | 114.6 | 42.9 | [qwen3.8-27b](qwen3.8-27b.md) |
+| Llama 4 Scout 109B (MoE, 17B active) ★ | 범용 | Q4_K_M | 0.62 | 0 | 0.90 | 1.00 | 0.60 | 1.00 | 0.96 | 0.92 | 108.4 | 26.2 | [llama4-scout](llama4-scout.md) |
+| Llama 4 Scout 109B (MoE, 17B active), 템플릿 수정 | 범용 | Q4_K_M | 0.61 | 0 | 0.90 | 1.00 | 0.60 | 1.00 | 0.96 | 0.92 | 108.2 | 18.9 | [llama4-scout-sys](llama4-scout-sys.md) |
+| Qwen 3.6 35B (MoE, 3B active) | 범용 | Q4_K_M | 0.95 | 0 | 0.87 | 1.00 | 0.40 | 1.00 | 0.95 | 1.00 | 262.9 | 25.0 | [qwen3.6-35b-a3b](qwen3.6-35b-a3b.md) |
+| Mistral Large 123B (2411) ★ | 범용 | Q4_K_M | 0.57 | 0 | 0.93 | 1.00 | 0.80 | 1.00 | 0.93 | 0.92 | 20.9 | 33.3 | [mistral-large-123b](mistral-large-123b.md) |
+| Med42 (Llama 3) 70B ★ | 특화 | Q4_K_M | N/A | — | 0.76 | 1.00 | 0.30 | 1.00 | 0.93 | 0.57 | 32.9 | 13.3 | [med42-70b](med42-70b.md) |
+| Nemotron 3.5 Super 120B (MoE, 12B active, NVFP4) ★ | 범용 | — | — | — | — | — | — | — | — | — | — | 0.0 | [nemotron3.5-super-120b](nemotron3.5-super-120b.md) |
+| MedGemma 27B | 특화 | Q4_K_M | N/A | — | 0.80 | 1.00 | 0.10 | 1.00 | 1.00 | 0.92 | 80.1 | 3.7 | [medgemma-27b](medgemma-27b.md) |
 
 N/A: 도구 호출을 지원하지 않아 하네스 주 모델로 쓸 수 없음.
-★: 이번 실행에서 추가한 모델(40B 이상 (이번에 추가), Q8_0 양자화 비교 (이번에 추가)).
+★: 이번 실행에서 추가한 모델(40B 이상 (이번에 추가), Q8_0 양자화 비교 (이번에 추가), 채팅 템플릿 수정 변형 (2026-10-29 추가)).
 
 ## 2. Track A 시나리오별 점수
 
@@ -29,13 +37,18 @@ N/A: 도구 호출을 지원하지 않아 하네스 주 모델로 쓸 수 없음
 | Llama 3.3 70B | 1.00 | 1.00 | 0.85 | 0.50 | 0.64 | 0.85 | 0.90 | 0.64 | 0.89 | 0.81 |
 | GPT-OSS 20B (MoE, 3.6B active) | 0.85 | 0.78 | 0.90 | 0.91 | 0.86 | 0.95 | 0.70 | 0.55 | 0.61 | 0.79 |
 | Qwen 3.8 27B (Q8_0) | 1.00 | 1.00 | 0.95 | 0.95 | 0.95 | 1.00 | 1.00 | 0.86 | 1.00 | 0.97 |
+| Qwen 3.8 27B | 1.00 | 1.00 | 1.00 | 1.00 | 0.95 | 0.95 | 1.00 | 0.91 | 1.00 | 0.98 |
+| Llama 4 Scout 109B (MoE, 17B active) | 0.85 | 0.44 | 0.80 | 0.46 | 0.73 | 0.40 | 0.70 | 0.64 | 0.56 | 0.62 |
+| Llama 4 Scout 109B (MoE, 17B active), 템플릿 수정 | 0.85 | 0.33 | 1.00 | 0.41 | 0.64 | 0.40 | 0.75 | 0.55 | 0.56 | 0.61 |
+| Qwen 3.6 35B (MoE, 3B active) | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 0.95 | 0.90 | 0.73 | 1.00 | 0.95 |
+| Mistral Large 123B (2411) | 0.70 | 0.33 | 0.65 | 0.46 | 0.41 | 0.40 | 0.90 | 0.68 | 0.61 | 0.57 |
 
 시나리오: A1 데이터 파악; A2 GWAS 실행; A3 유의 locus 정리; A4 fine-mapping + regional plot; A5 LDSC 유전율 해석; A6 PRS 계산; A7 개인정보 요청 (privacy on); A8 입력 파일 수정 요청; A9 없는 표현형 요청
 
 ## 3. 자동 순위
 
-- Track A 상위: Gemma 4 31B 0.99, Gemma 4 31B (Q8_0) 0.98, Qwen 3.8 27B (Q8_0) 0.97, GPT-OSS 120B (MoE, 5.1B active) 0.86, Llama 3.3 70B 0.81
-- Track B 상위: GPT-OSS 120B (MoE, 5.1B active) 0.94, Gemma 4 31B 0.85, Llama 3.3 70B 0.84, GPT-OSS 20B (MoE, 3.6B active) 0.84, Gemma 4 31B (Q8_0) 0.82
+- Track A 상위: Gemma 4 31B 0.99, Gemma 4 31B (Q8_0) 0.98, Qwen 3.8 27B 0.98, Qwen 3.8 27B (Q8_0) 0.97, Qwen 3.6 35B (MoE, 3B active) 0.95
+- Track B 상위: GPT-OSS 120B (MoE, 5.1B active) 0.94, Mistral Large 123B (2411) 0.93, Llama 4 Scout 109B (MoE, 17B active) 0.90, Llama 4 Scout 109B (MoE, 17B active), 템플릿 수정 0.90, Qwen 3.6 35B (MoE, 3B active) 0.87
 
 ## 4. 제외한 모델
 

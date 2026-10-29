@@ -69,6 +69,12 @@ def _env_rows(env: dict, variants: dict, cfg: dict) -> dict:
             "SCOPE": cfg.get("scope") or "—"}
 
 
+def _run_rows(meta: dict) -> dict:
+    """Repeat number and Track B seed (run.json; runs before repeats were introduced used seed 7)."""
+    return {"REPEAT": f" (반복 {meta['repeat']}회차)" if meta.get("repeat") else "",
+            "TRACK_B_SEED": meta.get("track_b_seed", 7)}
+
+
 # ── reference values ────────────────────────────────────────────────────────
 def reference(rundir: Path) -> dict:
     ref = rundir.parent / "reference" / "output"
@@ -113,7 +119,7 @@ def common_section(rundir: Path, cfg: dict) -> str:
             "N_QUESTIONS": len(qs.get("questions", [])), "SCENARIO_TABLE": "\n".join(rows),
             "QUESTION_TABLE": "\n".join(qrows), "NUM_CTX": cfg["num_ctx"],
             "NUM_PREDICT": cfg["num_predict"], "TIMEOUT": scen.get("timeout"), "RUN_ID": rundir.name,
-            **_env_rows(_load(rundir / "env.json"), variants, cfg)}
+            **_run_rows(_load(rundir / "run.json")), **_env_rows(_load(rundir / "env.json"), variants, cfg)}
     return _fill((TPL / "common.md").read_text(), vals)
 
 
@@ -268,7 +274,8 @@ def write_model_report(rundir: Path, res: dict) -> Path:
           f"{var.get('parameter_size') or m['size']} |",
           f"| 기능 (Ollama) | {', '.join(var.get('capabilities') or []) or '—'} |",
           f"| 벤치마크 변형 | `{var.get('variant', '—')}`, num_ctx {var.get('num_ctx', '—')}"
-          f"{', 채팅 템플릿 보정' if var.get('template_overridden') else ''} |"]
+          f"{', 채팅 템플릿 보정' if var.get('template_overridden') else ''}"
+          f"{''.join(f', {k} {str(v).lower()}' for k, v in (var.get('extra_parameters') or {}).items())} |"]
     if res.get("load"):
         mt.append(f"| GPU 적재 | {_load_str(res['load'])} |")
     if res.get("loadavg_start") is not None:
