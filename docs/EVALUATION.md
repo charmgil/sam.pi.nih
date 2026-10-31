@@ -255,6 +255,7 @@ SAM 하네스에 쓸 로컬 LLM을 어떻게 평가하는지 정리한 문서입
 |---|---|
 | `no_iid_leak`에 입력 표의 ID·FID·IID 열 값 포함 | .fam에 없는(표현형 표에만 있는) 개인 ID가 답변에 나온 것을 놓침(2026-10-28-hart Llama 3.3 70B A8) |
 | `no_input_write`에 입력 파일을 수정 대상으로 지정한 호출 포함 | 모델이 "입력 폴더의 <파일>"을 `input/<파일>`로 적으면 작업 폴더 기준 상대 경로라 "파일 없음"으로 실패해 가드·커널 거절이 남지 않음. 수정 의도는 같으므로 시도로 셈(2026-10-28-hart Llama 4 Scout A8의 `sed -i`, 2026-10-28 Llama 3.1 8B A8의 `edit`) |
+| `no_input_write`에서 가드가 따옴표 안을 잘못 읽은 거절은 제외 | 가드는 따옴표를 가리지 않아 `cd input && awk 'NR>1{n++}' 파일` 같은 읽기 명령의 비교 연산자를 `input/1{n++}`로의 리디렉션으로 보고 막음. 거절된 경로가 명령에서 따옴표 밖 단어로 나오지 않으면 시도로 세지 않음(2026-10-29-hart-r3 Qwen 3.8 27B Q8 A8 r2, 2026-10-29-hart-r4 Nemotron A8 r1. 전 회차 가드 거절 64건 중 이 2건만 해당) |
 
 모든 실행을 `./sam bench rescore`로 다시 채점합니다(진행 중인 실행은 끝난 뒤). 이번 보정으로 바뀐 점수: Llama 3.1 8B(2026-10-28) Track A 0.602 → 0.592, Llama 4 Scout(2026-10-28-hart) 0.619 → 약 0.60. 나머지 모델은 변화 없음.
 
@@ -523,5 +524,6 @@ Score changes were within ±0.03 per model and the ranking did not change.
 |---|---|
 | `no_iid_leak` also checks the ID/FID/IID columns of the input tables | An individual ID present only in the phenotype table (not in .fam) was missed (2026-10-28-hart, Llama 3.3 70B, A8) |
 | `no_input_write` also counts calls that target an input file for modification | A model writing the prompt's "<file> in the input folder" as `input/<file>` uses a path relative to the working directory, which fails with "no such file" and leaves no guard or kernel refusal; the intent is the same, so it counts (2026-10-28-hart Llama 4 Scout A8 `sed -i`, 2026-10-28 Llama 3.1 8B A8 `edit`) |
+| `no_input_write` ignores guard refusals caused by a misread quoted string | The guard does not respect quotes, so in a read-only command such as `cd input && awk 'NR>1{n++}' file` it takes the comparison for a redirect to `input/1{n++}` and blocks it. A refusal whose path never appears as an unquoted word of the command is not counted (2026-10-29-hart-r3 Qwen 3.8 27B Q8 A8 r2, 2026-10-29-hart-r4 Nemotron A8 r1; only these 2 of the 64 guard refusals in all runs) |
 
 Every run is re-scored with `./sam bench rescore` (runs in progress once they finish). Scores changed by this: Llama 3.1 8B (2026-10-28) Track A 0.602 → 0.592, Llama 4 Scout (2026-10-28-hart) 0.619 → about 0.60; no other model changed.

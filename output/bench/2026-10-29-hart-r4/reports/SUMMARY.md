@@ -1,9 +1,7 @@
-# SAM 로컬 LLM 벤치마크 — 비교 요약 (진행 중, 4/22 모델 완료)
+# SAM 로컬 LLM 벤치마크 — 비교 요약 (완료)
 
-> 실행 ID `2026-10-29-hart-r4` · 갱신 2026-10-29 07:46 · 모델 하나가 끝날 때마다 자동 갱신됩니다.
+> 실행 ID `2026-10-29-hart-r4` · 갱신 2026-10-30 06:36 · 모델 하나가 끝날 때마다 자동 갱신됩니다.
 > 데이터·실험 설계·채점 방법은 각 모델 보고서의 3–4절(공통)에 있습니다.
-
-대기 중: GPT-OSS 20B (MoE, 3.6B active), Qwen 3.8 27B (Q8_0), Qwen 3.8 27B, Llama 4 Scout 109B (MoE, 17B active), Qwen 3.6 35B (MoE, 3B active), Mistral Large 123B (2411), Med42 (Llama 3) 70B, Nemotron 3.5 Super 120B (MoE, 12B active, NVFP4), MedGemma 27B, Gemma 4 12B, Mistral 24B (Small 3.2), Llama 3.1 8B, Mistral 7B (v0.3), MedGemma 4B, BioMistral 7B, TxGemma 9B (chat), TxGemma 27B (chat), BioGPT 1.5B
 
 ## 1. 전체 비교
 
@@ -13,9 +11,32 @@
 | GPT-OSS 120B (MoE, 5.1B active) ★ | 범용 | MXFP4 | 0.89 | 0 | 0.94 | 0.94 | 0.90 | 1.00 | 0.93 | 0.92 | 211.3 | 43.3 | [gpt-oss-120b](gpt-oss-120b.md) |
 | Gemma 4 31B (Q8_0) ★ | 범용 | Q8_0 | 1.00 | 0 | 0.86 | 1.00 | 0.40 | 1.00 | 1.00 | 0.92 | 44.2 | 36.3 | [gemma4-31b-q8](gemma4-31b-q8.md) |
 | Llama 3.3 70B ★ | 범용 | Q4_K_M | 0.85 | 0 | 0.80 | 1.00 | 0.30 | 1.00 | 0.93 | 0.79 | 35.8 | 27.3 | [llama3.3-70b](llama3.3-70b.md) |
+| Llama 3.3 70B, 템플릿 수정 | 범용 | Q4_K_M | 0.81 | 0 | 0.80 | 1.00 | 0.30 | 1.00 | 0.93 | 0.79 | 32.8 | 50.5 | [llama3.3-70b-sys](llama3.3-70b-sys.md) |
+| GPT-OSS 20B (MoE, 3.6B active) | 범용 | MXFP4 | 0.76 | 0 | 0.87 | 1.00 | 0.50 | 1.00 | 0.93 | 0.92 | 293.2 | 12.7 | [gpt-oss-20b](gpt-oss-20b.md) |
+| Qwen 3.8 27B (Q8_0) ★ | 범용 | Q8_0 | 1.00 | 0 | 0.72 | 1.00 | 0.00 | 1.00 | 0.84 | 0.74 | 51.6 | 29.1 | [qwen3.8-27b-q8](qwen3.8-27b-q8.md) |
+| Qwen 3.8 27B | 범용 | Q4_K_M | 0.97 | 0 | 0.76 | 1.00 | 0.10 | 1.00 | 0.81 | 0.87 | 157.5 | 18.8 | [qwen3.8-27b](qwen3.8-27b.md) |
+| Llama 4 Scout 109B (MoE, 17B active) ★ | 범용 | Q4_K_M | 0.70 | 0 | 0.91 | 1.00 | 0.80 | 1.00 | 0.89 | 0.83 | 109.3 | 19.3 | [llama4-scout](llama4-scout.md) |
+| Llama 4 Scout 109B (MoE, 17B active), 템플릿 수정 | 범용 | Q4_K_M | 0.67 | 0 | 0.91 | 1.00 | 0.80 | 1.00 | 0.89 | 0.83 | 109.1 | 20.2 | [llama4-scout-sys](llama4-scout-sys.md) |
+| Qwen 3.6 35B (MoE, 3B active) | 범용 | Q4_K_M | 0.94 | 0 | 0.82 | 1.00 | 0.30 | 1.00 | 0.93 | 0.87 | 265.4 | 26.7 | [qwen3.6-35b-a3b](qwen3.6-35b-a3b.md) |
+| Mistral Large 123B (2411) ★ | 범용 | Q4_K_M | 0.62 | 0 | 0.92 | 1.00 | 0.70 | 1.00 | 1.00 | 0.92 | 20.9 | 30.4 | [mistral-large-123b](mistral-large-123b.md) |
+| Mistral Large 123B (2411), 템플릿 수정 | 범용 | Q4_K_M | 0.66 | 0 | 0.92 | 1.00 | 0.70 | 1.00 | 1.00 | 0.92 | 20.9 | 31.6 | [mistral-large-123b-sys](mistral-large-123b-sys.md) |
+| Med42 (Llama 3) 70B ★ | 특화 | Q4_K_M | N/A | — | 0.76 | 1.00 | 0.20 | 1.00 | 0.93 | 0.66 | 35.0 | 10.7 | [med42-70b](med42-70b.md) |
+| MedGemma 27B | 특화 | Q4_K_M | N/A | — | 0.76 | 1.00 | 0.10 | 1.00 | 0.87 | 0.83 | 80.1 | 3.8 | [medgemma-27b](medgemma-27b.md) |
+| Gemma 4 12B | 범용 | Q4_K_M | 0.96 | 0 | 0.78 | 1.00 | 0.10 | 1.00 | 1.00 | 0.79 | 309.1 | 13.6 | [gemma4-12b](gemma4-12b.md) |
+| Mistral 24B (Small 3.2) | 범용 | Q4_K_M | 0.67 | 0 | 0.84 | 1.00 | 0.30 | 1.00 | 1.00 | 0.92 | 100.8 | 5.2 | [mistral-small3.2-24b](mistral-small3.2-24b.md) |
+| Mistral 24B (Small 3.2), 템플릿 수정 | 범용 | Q4_K_M | 0.78 | 0 | 0.84 | 1.00 | 0.30 | 1.00 | 1.00 | 0.92 | 100.9 | 8.9 | [mistral-small3.2-24b-sys](mistral-small3.2-24b-sys.md) |
+| Llama 3.1 8B | 범용 | Q4_K_M | 0.66 | 0 | 0.76 | 0.77 | 0.20 | 1.00 | 0.96 | 0.87 | 261.3 | 2.5 | [llama3.1-8b](llama3.1-8b.md) |
+| Llama 3.1 8B, 템플릿 수정 | 범용 | Q4_K_M | 0.53 | 0 | 0.76 | 0.77 | 0.20 | 1.00 | 0.96 | 0.87 | 261.5 | 2.6 | [llama3.1-8b-sys](llama3.1-8b-sys.md) |
+| Mistral 7B (v0.3) | 범용 | Q4_K_M | 0.51 | 0 | 0.73 | 0.88 | 0.10 | 1.00 | 0.85 | 0.83 | 278.0 | 1.9 | [mistral-7b](mistral-7b.md) |
+| MedGemma 4B | 특화 | Q4_K_M | N/A | — | 0.71 | 1.00 | 0.10 | 0.73 | 0.85 | 0.87 | 287.7 | 0.7 | [medgemma-4b](medgemma-4b.md) |
+| BioMistral 7B | 특화 | Q4_K_M | N/A | — | 0.60 | 0.88 | 0.00 | 0.67 | 0.72 | 0.74 | 260.8 | 0.9 | [biomistral-7b](biomistral-7b.md) |
+| TxGemma 9B (chat) | 특화 | Q4_K_M | N/A | — | 0.71 | 0.94 | 0.10 | 0.87 | 0.76 | 0.87 | 175.3 | 1.8 | [txgemma-9b](txgemma-9b.md) |
+| TxGemma 27B (chat) | 특화 | Q4_K_M | N/A | — | 0.77 | 1.00 | 0.10 | 1.00 | 1.00 | 0.75 | 79.6 | 3.0 | [txgemma-27b](txgemma-27b.md) |
+| BioGPT 1.5B | 특화 | FP32 | N/A | — | 0.34 | 0.06 | 0.00 | 0.87 | 0.42 | 0.36 | 1.2 | 27.8 | [biogpt-large](biogpt-large.md) |
+| Nemotron 3.5 Super 120B (MoE, 12B active, Q4_K_M) ★ | 범용 | Q4_K_M | 0.98 | 0 | 0.86 | 1.00 | 0.50 | 0.87 | 1.00 | 0.95 | 188.9 | 33.1 | [nemotron3.5-super-120b](nemotron3.5-super-120b.md) |
 
 N/A: 도구 호출을 지원하지 않아 하네스 주 모델로 쓸 수 없음.
-★: 이번 실행에서 추가한 모델(40B 이상 (이번에 추가), Q8_0 양자화 비교 (이번에 추가)).
+★: 이번 실행에서 추가한 모델(40B 이상 (이번에 추가), Q8_0 양자화 비교 (이번에 추가), 채팅 템플릿 수정 변형 (2026-10-29 추가)).
 
 ## 2. Track A 시나리오별 점수
 
@@ -25,13 +46,29 @@ N/A: 도구 호출을 지원하지 않아 하네스 주 모델로 쓸 수 없음
 | GPT-OSS 120B (MoE, 5.1B active) | 1.00 | 1.00 | 0.90 | 0.91 | 0.91 | 0.95 | 0.80 | 0.59 | 0.94 | 0.89 |
 | Gemma 4 31B (Q8_0) | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
 | Llama 3.3 70B | 0.95 | 0.89 | 0.95 | 0.55 | 0.73 | 0.90 | 0.95 | 0.82 | 0.89 | 0.85 |
+| Llama 3.3 70B, 템플릿 수정 | 0.90 | 1.00 | 0.90 | 0.68 | 0.77 | 0.95 | 0.80 | 0.55 | 0.78 | 0.81 |
+| GPT-OSS 20B (MoE, 3.6B active) | 0.90 | 0.67 | 0.90 | 0.82 | 0.82 | 0.85 | 0.70 | 0.55 | 0.67 | 0.76 |
+| Qwen 3.8 27B (Q8_0) | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
+| Qwen 3.8 27B | 1.00 | 1.00 | 0.95 | 1.00 | 0.91 | 0.95 | 0.95 | 0.95 | 1.00 | 0.97 |
+| Llama 4 Scout 109B (MoE, 17B active) | 0.95 | 0.89 | 0.80 | 0.73 | 0.77 | 0.40 | 0.70 | 0.55 | 0.56 | 0.70 |
+| Llama 4 Scout 109B (MoE, 17B active), 템플릿 수정 | 0.95 | 0.78 | 1.00 | 0.41 | 0.59 | 0.40 | 0.70 | 0.68 | 0.56 | 0.67 |
+| Qwen 3.6 35B (MoE, 3B active) | 1.00 | 1.00 | 0.95 | 1.00 | 1.00 | 0.95 | 1.00 | 0.68 | 0.83 | 0.94 |
+| Mistral Large 123B (2411) | 0.70 | 0.44 | 0.95 | 0.46 | 0.68 | 0.35 | 0.75 | 0.68 | 0.61 | 0.62 |
+| Mistral Large 123B (2411), 템플릿 수정 | 0.65 | 0.67 | 0.65 | 0.59 | 0.46 | 0.70 | 0.70 | 0.64 | 0.89 | 0.66 |
+| Gemma 4 12B | 1.00 | 1.00 | 0.95 | 1.00 | 0.73 | 1.00 | 1.00 | 1.00 | 1.00 | 0.96 |
+| Mistral 24B (Small 3.2) | 0.95 | 0.33 | 0.95 | 0.50 | 0.55 | 0.50 | 0.80 | 0.77 | 0.67 | 0.67 |
+| Mistral 24B (Small 3.2), 템플릿 수정 | 0.90 | 1.00 | 0.95 | 0.55 | 0.73 | 0.70 | 0.85 | 0.68 | 0.67 | 0.78 |
+| Llama 3.1 8B | 1.00 | 0.44 | 0.85 | 0.50 | 0.46 | 0.55 | 0.70 | 0.59 | 0.83 | 0.66 |
+| Llama 3.1 8B, 템플릿 수정 | 0.40 | 0.44 | 0.50 | 0.50 | 0.55 | 0.60 | 0.70 | 0.50 | 0.56 | 0.53 |
+| Mistral 7B (v0.3) | 0.35 | 0.44 | 0.40 | 0.50 | 0.27 | 0.40 | 0.75 | 0.73 | 0.72 | 0.51 |
+| Nemotron 3.5 Super 120B (MoE, 12B active, Q4_K_M) | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 0.85 | 1.00 | 1.00 | 1.00 | 0.98 |
 
 시나리오: A1 데이터 파악; A2 GWAS 실행; A3 유의 locus 정리; A4 fine-mapping + regional plot; A5 LDSC 유전율 해석; A6 PRS 계산; A7 개인정보 요청 (privacy on); A8 입력 파일 수정 요청; A9 없는 표현형 요청
 
 ## 3. 자동 순위
 
-- Track A 상위: Gemma 4 31B (Q8_0) 1.00, Gemma 4 31B 0.98, GPT-OSS 120B (MoE, 5.1B active) 0.89, Llama 3.3 70B 0.85
-- Track B 상위: GPT-OSS 120B (MoE, 5.1B active) 0.94, Gemma 4 31B (Q8_0) 0.86, Gemma 4 31B 0.84, Llama 3.3 70B 0.80
+- Track A 상위: Gemma 4 31B (Q8_0) 1.00, Qwen 3.8 27B (Q8_0) 1.00, Nemotron 3.5 Super 120B (MoE, 12B active, Q4_K_M) 0.98, Gemma 4 31B 0.98, Qwen 3.8 27B 0.97
+- Track B 상위: GPT-OSS 120B (MoE, 5.1B active) 0.94, Mistral Large 123B (2411) 0.92, Mistral Large 123B (2411), 템플릿 수정 0.92, Llama 4 Scout 109B (MoE, 17B active) 0.91, Llama 4 Scout 109B (MoE, 17B active), 템플릿 수정 0.91
 
 ## 4. 제외한 모델
 
@@ -39,7 +76,7 @@ N/A: 도구 호출을 지원하지 않아 하네스 주 모델로 쓸 수 없음
 |---|---|
 | Qwen 3.8 Flash-Next 125B-A6B | Q4_K_M 120 GB, NVFP4 105 GB: 96 GB GPU에 들어가지 않음 (CPU 오프로드는 RAM 60 GB로도 불가) |
 | Qwen 3.8 2.4T-A95B, Llama 3.1 405B, Llama 4 Maverick 400B | 96 GB GPU에 들어가지 않음 |
-| Nemotron 3.5 Super Q4_K_M | 90.2 GB라 컨텍스트·연산 버퍼 자리가 없음 → 같은 모델의 NVFP4(79.6 GB)로 시험 |
+| Nemotron 3.5 Super NVFP4 | Ollama의 MLX 엔진(Apple) 전용 태그라 이 서버(Linux, CUDA)에서 받을 수 없음 → Q4_K_M(90.2 GB)으로 시험(2026-10-29) |
 | Llama 3.1 70B | 같은 구조의 후속 지시 모델 Llama 3.3 70B로 대표 |
 | GLM 5.3, DeepSeek V4.1 Flash, MiniMax M3.1 Flash, Mistral Large 4, Muse Spark | Ollama에서 클라우드 전용(공개 가중치 로컬 태그 없음). 로컬 모델만 평가 |
 | GPT-Rosalind (OpenAI) | 공개 가중치 없음. ChatGPT/Codex/API의 신뢰 접근 프로그램으로만 제공되어 로컬 구동 불가 |

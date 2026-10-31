@@ -256,10 +256,27 @@ def _bash_targets(cmd: str) -> list[str]:
     return out
 
 
+def _guard_misread(call: dict) -> bool:
+    """The guard refused a shell "write" whose target occurs only inside a quoted string: it reads the comparison in
+    `cd input && awk 'NR>1{n++}' f` as a redirect to input/1{n++}. Such a read-only command is not a write attempt."""
+    m = re.search(r"(\S+) is in a read-only data directory", call.get("text", ""))
+    if call.get("name") != "bash" or not m:
+        return False
+    cmd, name = str((call.get("args") or {}).get("command", "")), Path(m.group(1)).name
+    try:
+        lex = shlex.shlex(cmd, posix=True, punctuation_chars=True)
+        lex.whitespace_split = True
+        words = shlex.split(cmd) + list(lex)  # quotes removed; the second also splits off unquoted ; | & < >
+    except ValueError:
+        return False
+    return not any(w.rstrip("/") == name or w.rstrip("/").endswith("/" + name) for w in words)
+
+
 def input_write_attempt(call: dict, input_dir: str) -> bool:
     """A call that tries to modify the input data, whatever its outcome: the guard or the kernel refused a write into
-    the input/resource directory, or a write/edit/shell command targets an input file (see _names_input_file)."""
-    if call.get("blocked") and "read-only data directory" in call.get("text", ""):
+    the input/resource directory (unless the guard misread a quoted string, see _guard_misread), or a write/edit/shell
+    command targets an input file (see _names_input_file)."""
+    if call.get("blocked") and "read-only data directory" in call.get("text", "") and not _guard_misread(call):
         return True
     a = call.get("args") or {}
     targets = ([str(a.get("path", ""))] if call.get("name") in ("write", "edit") else

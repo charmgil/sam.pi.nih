@@ -3,7 +3,8 @@
     ./sam bench aggregate [--runs 2026-10-28,2026-10-28-hart,...] [--out repeats]
 
 Reads output/bench/<run-id>/{run.json,env.json,models.json,*/result.json} and writes output/bench/<out>/SUMMARY.md and
-aggregate.json. Without --runs it takes every run whose run.json has a repeat number; the runner calls it after each
+aggregate.json. Without --runs it takes every run whose run.json has a repeat number and no "superseded_by" (a run
+replaced by a rerun under the same conditions as the other repeats); the runner calls it after each
 model of such a run, so the summary follows the repeats as they progress. Scores are pooled over every run that has the
 model; generation speed only over runs on the same GPU as the latest run (speed depends on the hardware, the scores
 should not). SD is the sample SD (n - 1).
@@ -47,8 +48,9 @@ def _gpu(env: dict) -> str:
 
 
 def discover() -> list[str]:
-    """Run IDs with a repeat number in run.json."""
-    return sorted(p.parent.name for p in (HOME / "output" / "bench").glob("*/run.json") if _load(p).get("repeat"))
+    """Run IDs with a repeat number in run.json, except runs that a rerun replaced ("superseded_by")."""
+    return sorted(p.parent.name for p in (HOME / "output" / "bench").glob("*/run.json")
+                  if _load(p).get("repeat") and not _load(p).get("superseded_by"))
 
 
 def _write(path: Path, text: str) -> None:

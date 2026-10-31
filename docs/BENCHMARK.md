@@ -52,7 +52,7 @@
 | Llama 4 Scout | 40B 이상 | MoE 109B(활성 17B) · Q4_K_M, 67 GB | 새 계열. Ollama 기본 템플릿 그대로(Track A에 시스템 프롬프트가 전달되지 않음) |
 | Mistral Large 123B (2411) | 40B 이상 | 123B dense · Q4_K_M, 73 GB | Mistral 7B·Small 24B와 비교 |
 | Med42 70B | 40B 이상, 의료 특화 | 70B · Q4_K_M(HF GGUF), 43 GB | 임상 지시 학습 Llama 3 70B. Me-LLaMA 대신 |
-| Nemotron 3.5 Super 120B | 40B 이상 | MoE 120B(활성 12B) · Q4_K_M, 90 GB | NVFP4(80 GB)는 Ollama의 MLX(Apple) 전용이라 이 서버에서 받을 수 없어 Q4_K_M으로 시도(GPU에 남는 자리가 작아 CPU 오프로드 가능성, 보고서에 표시). 목록 맨 뒤 |
+| Nemotron 3.5 Super 120B | 40B 이상 | MoE 120B(활성 12B) · Q4_K_M, 90 GB | NVFP4(80 GB)는 Ollama의 MLX(Apple) 전용이라 이 서버에서 받을 수 없어 Q4_K_M으로 실행. 32K 컨텍스트로 88.9 GB가 GPU에 모두 들어감(하이브리드 Mamba라 KV 캐시가 작음). 목록 맨 뒤 |
 | Gemma 4 31B Q8_0 | 양자화 비교 | 31B · Q8_0, 34 GB | 기본 모델의 Q4_K_M과 비교 |
 | Qwen 3.8 27B Q8_0 | 양자화 비교 | 27B · Q8_0, 30 GB | 카탈로그가 설치하는 태그 |
 | Llama 3.3 70B·Llama 3.1 8B·Mistral Large 123B·Mistral Small 3.2 24B (템플릿 수정) | 템플릿 수정 변형 | 원래 모델과 같은 가중치 | 2026-10-29 추가. Ollama 템플릿이 첫 도구 결과 뒤로 도구 목록(Mistral Large는 시스템 프롬프트도)을 넣지 않는 문제를 고친 변형(`docs/ISSUES-2026-10-29.md` #12). 2–5회차 |
@@ -147,3 +147,33 @@ Track A 이벤트 기록에는 로컬 모델이 읽은 개인 단위 값이 들�
 
 채점 보정: 실행 후 거짓 음성 정규식 3개를 넓히고, A8에 `no_input_write`(입력 수정 시도 없음) 검사와 공백 천 단위 수 인식을 더해
 `./sam bench rescore`로 모든 모델을 다시 채점했습니다(점수 변화 ±0.03 이내, 순위 변화 없음).
+
+## 6. 2026-10-28-hart 실행 결과 요약 (96 GB GPU, 반복 2회차)
+
+종합 보고서: `output/bench/2026-10-28-hart/reports/FINAL.md`, 반복 회차 종합(평균 ± SD): `output/bench/repeats/SUMMARY.md` (출력 폴더라 git에는 없음)
+
+| 역할 | 결과 |
+|---|---|
+| 주 모델 (Track A) | (옛 2회차 1회 결과, 5회 평균은 7절) Nemotron 3.5 Super 120B 1.00(17회 모두 만점, 1회 결과), Gemma 4 31B 0.99, Qwen 3.8 27B 0.98, Gemma 4 12B 0.96, Qwen 3.6 0.95, GPT-OSS 120B 0.86, Llama 3.3 70B 0.81, Llama 4 Scout 0.60, Mistral Large 0.57 |
+| 자문 (Track B) | GPT-OSS 120B 0.94(rsID→유전자 0.90), Mistral Large 0.93, Llama 4 Scout 0.90, Qwen 3.6 0.87, Nemotron 0.86, Gemma 4 31B 0.85, … MedGemma 27B 0.80 |
+| 크기 | 지식·해석과 유전자 회상은 같은 계열에서 클수록 좋아졌지만, 에이전트 점수는 계열이 더 중요(40B 이상 중 Nemotron만 상위권) |
+| 양자화 | Q8_0은 점수 이득 없이 2–3.7배 느림 → Q4_K_M 유지 |
+| 채팅 템플릿 | Ollama의 Llama 4·Llama 3.x·Mistral 템플릿이 에이전트 대화에서 시스템 프롬프트나 도구 목록을 빠뜨림. 고친 변형은 Mistral에서만 일관되게 좋아짐(ISSUES-2026-10-29 #8·#12) |
+| 안전 | 치명 실패 0(커널 읽기 전용). 입력 쓰기 시도 10개 모델·변형, 모두 차단. 도구 없이 결과를 지어내는 사례(Mistral Large, Llama 4 Scout) |
+| 재현성 | 기존 14개 모델: 1회차 대비 Track A −0.03 – +0.10, Track B ±0.06, 순위 같음 |
+
+## 7. 반복 실행 결과 요약 (1–5회차, 평균 ± SD)
+
+반복 종합 보고서: `output/bench/repeats/FINAL.md`, 자동 집계: `output/bench/repeats/SUMMARY.md` (출력 폴더라 git에는 없음).
+다섯 회차 모두 hart에서 같은 실행기 코드로 돌았습니다(1·2회차는 10-30 – 10-31 재실행, seed 6–10). 27개 모델·변형 모두 5회 평균이고, 모든 회차를 마지막 채점 규칙으로 채점했습니다.
+옛 1회차(다른 서버, 가드만)와 옛 2회차(실행 중 실행기 변경)는 집계에서 뺐고, 재실행 전 종합은 `output/bench/repeats/before-rerun/`에 있습니다. 재실행으로 결론은 바뀌지 않았습니다.
+
+| 역할 | 결과 |
+|---|---|
+| 주 모델 (Track A) | 상위 5개가 변동 안에서 같음(다섯 회차 모두 1–5위): Qwen 3.8 27B Q8 0.99 ± 0.01, Gemma 4 31B 0.99 ± 0.01(범위 0.980–0.995, 가장 안정), Gemma 4 31B Q8 0.98 ± 0.02, Qwen 3.8 27B 0.98 ± 0.01, Nemotron 3.5 Super 0.98 ± 0.02. 다음 Qwen 3.6 0.93, Gemma 4 12B 0.93, GPT-OSS 120B 0.86 |
+| 자문 (Track B) | Mistral Large 0.94 ± 0.02, GPT-OSS 120B 0.92 ± 0.03(rsID→유전자 0.88, 가장 높음), Llama 4 Scout 0.92 ± 0.02. GPT-OSS 120B는 MedGemma 27B(0.78)보다 다섯 회차 모두 높음(+0.14 ± 0.04) |
+| 채팅 템플릿 수정 | Mistral Small +0.10 ± 0.08, Mistral Large +0.09 ± 0.07(5/5회 상승), Llama 3.3 −0.04, Llama 4 Scout −0.05(5/5회 하락), Llama 3.1 8B −0.05 |
+| 양자화 | Q8 − Q4 차이 Track A ±0.02 안, 속도 3.0–3.8배 느림 → Q4_K_M |
+| 안전 | 1,700회 중 입력 변경 0, 치명 실패 1(Qwen 3.6 5회차 개인 ID 출력), 시간 초과 4. 커널 보호가 Qwen 3.6의 Python 우회 덮어쓰기 시도를 막음 |
+| 재현성 | 회차 간 순위 상관 Track A 0.93–0.97, Track B 최소 0.90. 모델 하나의 Track A가 회차에 따라 최대 0.15 달라짐 → 1회 결과로 정하지 않음. Track B는 같은 seed·서버면 GPT-OSS를 빼고 답이 같음 |
+| 제안(팀 확인 필요) | 주 모델 Gemma 4 31B 유지(Nemotron으로 바꿀 이유 없음), 자문 모델 GPT-OSS 120B(Gemma 4 31B와 함께 96 GB에 들어감) |

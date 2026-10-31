@@ -4,11 +4,11 @@
 변경 이력을 한곳에 모았습니다. 사용법은 [USAGE.md](USAGE.md), 설계 근거는 [DESIGN.md](DESIGN.md), 단계별 입력·출력은
 [WORKFLOW.md](WORKFLOW.md)를 보세요.
 
-> 마지막 갱신: 2026-10-28 · 저장소 `git@github.com:charmgil/sam.pi.nih.git` (main)
+> 마지막 갱신: 2026-10-30 · 저장소 `git@github.com:charmgil/sam.pi.nih.git` (main)
 > 이 문서에 적힌 결정 사항은 지금까지 Claude Code의 서버별 메모리에만 있던 내용을 옮긴 것입니다. 새 서버에는 그 메모리가 없으므로
 > **이 문서가 기준**입니다.
 
-## 1. 지금 상태 (2026-10-28)
+## 1. 지금 상태 (2026-10-30)
 
 | 영역 | 상태 |
 |---|---|
@@ -16,12 +16,17 @@
 | 에이전트 (pi 1.4.0 + SAM 확장) | 도구 13종, 규칙(RULES.md), 스킬 4종, 프롬프트 템플릿 5종, 가드(설치·다운로드·sudo 금지, privacy) |
 | 읽기 전용 보장 | 입력·리소스 쓰기를 **커널(Linux Landlock)** 이 막음(`src/samkit/sandbox.py`, R40). 가드는 먼저 거절하고 이유를 설명 |
 | 기본 모델 | 로컬 **Gemma 4 31B**(`ollama/sam-gemma4-31b`), 에이전트·자문 공용. 클라우드 모델은 쓰지 않음(팀 결정) |
-| 로컬 LLM 벤치마크 | 14개 모델 완료(실행 ID `2026-10-28`). 종합 보고서 `output/bench/2026-10-28/reports/FINAL.md`(git에 있음) |
+| 로컬 LLM 벤치마크 | 27개 모델·변형 × 5회 반복. 모두 hart에서 같은 조건으로 완료(1·2회차 `2026-10-30-hart-r1/r2`는 10-31 07:33 재실행 완료, 3–5회차 `2026-10-29-hart-r3/r4/r5`; 옛 `2026-10-28`, `2026-10-28-hart`는 집계 제외). 반복 종합 `output/bench/repeats/FINAL.md`(평균 ± SD), 회차별 `output/bench/<실행 ID>/reports/` |
 | 문서 | README, SETUP, USAGE, USECASES, WORKFLOW, DESIGN, TOOLS, MODELS, BENCHMARK, EVALUATION, REVIEW-2026-10-27, ISSUES-2026-10-28, ISSUES-2026-10-29, LLAMA4-TEMPLATE-2026-10-29, QC, EXPERT-INPUT, 이 문서 |
 | 테스트 | `./sam test`: Python 43개 + 가드 14개 통과, `ruff check src tests bench` 통과 |
 
 검증에 쓴 서버: NVIDIA RTX PRO 5000 Blackwell 48 GB, RAM 123 GB, 16코어, Debian 13(커널 6.12), Ollama 0.40.11(`/usr/local/bin/ollama`,
 시스템 서비스 11434). Gemma 4 31B(Q4_K_M, context 64K)는 GPU 메모리 약 29 GB를 씁니다.
+
+2026-10-28부터 작업 서버는 **hart**입니다: RTX PRO 6000 Blackwell 96 GB, 16코어(다른 사용자와 공유, load average 20–30), RAM 60 GB, Ollama 0.40.12.
+외부 내려받기가 약 7 MB/s라 모델 내려받기가 일정을 좌우합니다. 큰 모델은 벤치마크용 Ollama(11435, 저장소 `.sam/ollama/models`, /projects 하드 디스크)에 두고,
+`bench/ollama-serve.sh`가 적재 제한을 30분으로 늘립니다(`OLLAMA_LOAD_TIMEOUT=30m`). RAM보다 큰 모델은 `bench/models.json`의 `"parameters": {"use_mmap": false}`로
+mmap 없이 적재해야 30분 안에 올라갑니다(Mistral Large·Nemotron). BioGPT용 환경은 `.sam/bin/pixi install --manifest-path bench/hf/pixi.toml`.
 
 ## 2. 새 서버로 옮기기
 
@@ -74,9 +79,9 @@ rsync -a <옛 서버>:/projects/NIH/sam.pi.nih/sam-data/ ./sam-data/      # 또�
 | 항목 | 지금 | 큰 GPU에서 |
 |---|---|---|
 | 컨텍스트 | 에이전트 변형 65,536(`models/catalog.json`의 `context_length`) | `./sam llm pull gemma4-31b --context 131072`처럼 늘릴 수 있음. 도구 결과가 긴 세션에 유리. 늘린 뒤 `./sam llm models-json` |
-| 자문 모델 | 주 모델과 같은 Gemma 4 31B(추가 메모리 없음) | 다른 모델을 동시에 올려 독립된 2차 의견 가능(벤치마크 Track B 1위 GPT-OSS 20B). `--consultant ollama/sam-gpt-oss-20b` |
-| 40B 이상 모델 | 벤치마크에서 제외(팀 결정) | GPT-OSS 120B, Llama 3.1 70B, Qwen 3.8 Flash-Next 125B-A6B 등을 시험할지 **팀이 결정**. 추가하면 `bench/models.json`과 `bench/pull-models.sh`에 넣고 같은 실행 ID로 이어서 실행 |
-| 양자화 | 대부분 Q4_K_M | Q8_0이나 BF16으로 같은 모델을 비교해 양자화 영향 확인(카탈로그의 qwen3.8 태그는 q8_0이지만 벤치마크는 Q4_K_M) |
+| 자문 모델 | 주 모델과 같은 Gemma 4 31B(추가 메모리 없음) | 반복 벤치마크 결과 GPT-OSS 120B 제안(Track B 0.92 ± 0.03, rsID→유전자 0.88, MedGemma 27B보다 5회 모두 높음, Gemma 4 31B와 합쳐 86 GB). 카탈로그 추가·기본 변경은 팀 확인 후 |
+| 40B 이상 모델 | hart에서 6개 시험 완료(2026-10-28 – 10-30) | 에이전트 상위권은 Nemotron 3.5 Super 120B뿐이고 Gemma 4 31B와 같은 점수(0.98). 결과는 `output/bench/repeats/FINAL.md` |
+| 양자화 | 대부분 Q4_K_M | Q8_0 비교 완료: 점수 이득 없이 2.8–3.8배 느림 → Q4_K_M 유지(카탈로그의 qwen3.8 태그는 q8_0이지만 벤치마크는 Q4_K_M) |
 | vLLM | 레시피만 있고 미검증(O5) | FP8 가중치로 처리량을 높일 때 `./sam llm vllm-install`, `vllm-command <id>` |
 
 ## 3. 구조 한눈에
@@ -124,6 +129,11 @@ rsync -a <옛 서버>:/projects/NIH/sam.pi.nih/sam-data/ ./sam-data/      # 또�
 | 10-28 | 벤치마크는 40B 미만 모델만 |
 | 10-28 | 기본 모델을 Gemma 4 31B로(에이전트·자문) |
 | 10-28 | 벤치마크 중 덮어써진 입력 파일의 수정 시각을 원래 값(2026-10-27 18:38:46)으로 복원 |
+| 10-28 | 서버를 hart(96 GB GPU)로 옮기고 벤치마크를 96 GB에 들어가는 40B 이상 모델로 확장("40B 미만만" 결정을 대신함). Q8_0 양자화 비교 추가 |
+| 10-28 | 같은 벤치마크를 5회 반복해 평균 ± SD로 집계. Track B seed는 회차마다 바꿈(7, 7, 8, 9, 10) |
+| 10-29 | Llama 4 Scout에 시스템 프롬프트를 넣도록 고친 템플릿 변형 추가(원래 모델은 기본 템플릿 그대로) |
+| 10-29 | Nemotron 3.5 Super는 MLX 전용 NVFP4 대신 Q4_K_M으로. Llama 3.x·Mistral 계열은 계열별 2개씩 템플릿 수정 변형 추가 |
+| 10-30 | 1·2회차를 hart에서 3–5회차와 같은 조건으로 재실행(seed 6, 7). 옛 1회차(다른 서버·가드만)와 옛 2회차(실행 중 실행기 변경)는 폴더만 남기고 집계에서 뺌 |
 
 ## 5. 개발할 때의 주의점
 
@@ -175,7 +185,9 @@ rsync -a <옛 서버>:/projects/NIH/sam.pi.nih/sam-data/ ./sam-data/      # 또�
 |---|---|
 | O1 | PCA 친족 제거, MHC 외 장거리 LD 구간 제외, MAC 기준(분석 부분집합 기준으로), dosage VCF의 `--mind/--geno` 기준 |
 | O2 | LDSC Python 3 포팅 대 원본 py2.7 수치 대조(같은 munged 파일로 1회) |
-| — | 40B 이상 모델 시험 여부(큰 GPU 서버에서) |
+| — | 기본 자문 모델을 GPT-OSS 120B로 바꿀지(반복 벤치마크 제안, 주 모델은 Gemma 4 31B 유지 제안) |
+| — | 가드의 bash 쓰기 대상 판별이 따옴표 안을 건너뛰게 고칠지(ISSUES-2026-10-29 #17), bash `timeout` 상한·루트 재귀 나열 경고(#5) |
+| — | `docs/MODELS.md`에 "Llama·Mistral 계열은 Ollama 기본 템플릿이 에이전트 대화에서 규칙·도구 목록을 빠뜨림"을 적을지, Ollama에 알릴지(외부 공개) |
 | — | genome103 데이터로 시험, 클라우드 모델 시험(보류 중) |
 | — | Me-LLaMA: PhysioNet 자격 인증을 받으면 13B-chat 추가 |
 | — | 옛 서버의 벤치마크 Ollama 인스턴스(11435)와 저장소(94 GB) 정리 |
@@ -195,7 +207,8 @@ rsync -a <옛 서버>:/projects/NIH/sam.pi.nih/sam-data/ ./sam-data/      # 또�
 
 - 방법론 객관식이 천장 효과(17문항 중 12문항 전 모델 정답) → 더 어려운 문항 추가
 - locus 문항은 정답 후보를 어디서든 언급하면 점수 → 1순위 판정으로 엄격하게
-- 반복 3회 이상, 다른 형질(LDL, TG, 이진형), 다른 PRS weight
+- 다른 형질(LDL, TG, 이진형), 다른 PRS weight (반복은 5회 완료)
+- 결과 지어내기를 규칙으로 더 잡기(지금은 수치 근거율만). Nemotron thinking 끈 조건
 - 커널 보호 아래에서 모든 도구 호출 모델의 A8 재실행(선택. 모델 성향은 `no_input_write`로 이미 측정)
 - **이식성**: 아래 세 가지는 새 서버에 맞게 손봐야 합니다
   - `bench/pull-models.sh`는 Ollama 주소(127.0.0.1:11435)와 실행 파일 경로(`/usr/local/bin/ollama`)가 고정돼 있습니다.
@@ -266,3 +279,27 @@ R 번호는 [REVIEW-2026-10-27.md](REVIEW-2026-10-27.md)의 이슈 번호입니�
 - `docs/DEVNOTES.md`(이 문서)
 - `bench/make-reference.sh`: 정답 실행 스크립트를 경로를 받는 형태로 저장소에 추가(이전 것은 `output/` 아래에 절대 경로로 있었음)
 - REVIEW O3 갱신(쓰기는 커널 보호, 읽기는 여전히 패턴 기반)
+
+### 2026-10-29 01:20 — `a8b9a7a`
+
+- hart 서버로 옮김: 벤치마크 Ollama(11435) 적재 제한 30분, 내려받기 대기열(`bench/pull-models.sh`), 40B 이상 6개·Q8 2개를 `bench/models.json`에 추가
+- 정답 실행을 hart에서 다시 만듦(git 밖 작업. 입력 파일 수정 시각이 달라 지문이 맞지 않았음, 요약값 223개는 같음)
+- `docs/ISSUES-2026-10-28.md`, `docs/EXPERT-INPUT.md`, 2회차 계획·메모(`output/bench/2026-10-28-hart/reports/PLAN.md`, `NOTES.md`)
+
+### 2026-10-29 11:06 — `d88eca8`
+
+- 반복 실행: GPU 차례 잠금(`.sam/bench/gpu/`), 회차·seed 고정(`run.json`), `bench/aggregate.py`와 `./sam bench aggregate`, 재채점 시 seed 유지
+- 채점: 개인 ID 검출에 표현형 표 ID 포함(④), 상대 경로로 실패한 입력 수정 시도 포함(⑤)
+- 채팅 템플릿: `bench/chat-templates/`(Llama 4·Llama 3.x·Mistral), 모델별 Ollama 매개변수(`parameters`, `use_mmap`)
+- `docs/ISSUES-2026-10-29.md`, `docs/LLAMA4-TEMPLATE-2026-10-29.md`
+
+### 2026-10-29 13:23 — `4094901`
+
+- 템플릿 수정 변형 4개 추가(Llama 3.3·3.1, Mistral Large·Small), Nemotron Q4_K_M, `docs/QC.md`
+
+### 2026-10-30 – 10-31 (미커밋)
+
+- 2–5회차 완료(10-30 07:33), 모든 회차 재채점, 반복 종합 보고서 `output/bench/repeats/FINAL.md`(git 밖, 필요하면 `git add -f`)
+- 10-30 18:37 – 10-31 07:33 1·2회차 재실행(`2026-10-30-hart-r1/r2`, 오류·시간 초과·치명 실패 없음), 반복 종합 보고서를 새 다섯 회차로 다시 씀(결론 그대로). `bench/aggregate.py`: `run.json`에 `superseded_by`가 있는 회차는 집계에서 뺌(옛 1·2회차에 표시). 재실행 전 종합은 `output/bench/repeats/before-rerun/`
+- `bench/score.py`: 가드가 따옴표 안의 awk 비교식(`NR>1`)을 쓰기로 잘못 읽어 막은 읽기 명령은 입력 수정 시도로 세지 않음(⑥, ISSUES-2026-10-29 #17)
+- `docs/BENCHMARK.md` 7절, `docs/EVALUATION.md` 보정 ⑥, 보고서 공통 절 채점 이력 ⑥, `docs/LLAMA4-TEMPLATE-2026-10-29.md` 5.2절 완성, 이 문서
