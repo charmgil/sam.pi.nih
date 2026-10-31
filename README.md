@@ -74,6 +74,7 @@ cd /projects/NIH/sam.pi.nih
 | [docs/EXPERT-INPUT.md](docs/EXPERT-INPUT.md) | 도메인 전문가 검토가 필요한 분석 기본값과 벤치마크 정답·채점 기준 |
 | [docs/BENCHMARK.md](docs/BENCHMARK.md) | 로컬 LLM 벤치마크: 설계, 대상 모델, 실행 방법, 결과 위치 |
 | [docs/EVALUATION.md](docs/EVALUATION.md) | 벤치마크 평가 방법과 기준: Track A·B의 시나리오, 확인 항목, 채점·집계 규칙 (한국어 + 영문) |
+| [docs/EVALUATION_SUPPLE.md](docs/EVALUATION_SUPPLE.md) | 평가 방법 보충: 실제 질문·답변 채점 사례, 가중치 값과 근거, Track B 부분 점수, random seed의 역할, 찾은 규칙의 빈틈 |
 | [docs/DEVNOTES.md](docs/DEVNOTES.md) | 개발 노트와 변경 이력: 현재 상태, 다른 서버로 옮기기, 결정 사항, 주의점, 남은 일 |
 
 ## 폴더 구조

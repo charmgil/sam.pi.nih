@@ -3,6 +3,7 @@
 SAM 하네스에 쓸 로컬 LLM을 어떻게 평가하는지 정리한 문서입니다. 실행 방법과 결과는 [BENCHMARK.md](BENCHMARK.md),
 채점 코드는 [bench/score.py](../bench/score.py), 시나리오와 문항은 [bench/scenarios.json](../bench/scenarios.json)과
 [bench/questions.json](../bench/questions.json)에 있습니다. 아래 기준은 2026-10-28 실행(실행 후 보정 포함, 8절)에 적용한 그대로입니다.
+실제 채점 사례, 가중치의 값과 근거, Track B의 부분 점수, random seed의 역할은 [EVALUATION_SUPPLE.md](EVALUATION_SUPPLE.md)에 있습니다.
 
 [English version below](#english-version)
 
@@ -33,7 +34,7 @@ SAM 하네스에 쓸 로컬 LLM을 어떻게 평가하는지 정리한 문서입
   같은 기록이면 언제 다시 채점해도 같은 점수가 나옵니다. 대신 표현이 다른 정답을 놓칠 수 있어 보고서에 답변 원문을 함께 싣습니다.
 - **모든 모델이 같은 조건에서 돌아갑니다.**
   - 모든 모델은 Ollama 변형 `bench-<id>`로 돌립니다(`num_ctx` 32768, 모델 최대치가 작으면 그 값; 출력 상한 8192 토큰).
-  - 샘플링은 모델 기본값입니다. Track B 요청은 seed를 고정합니다(1·2회차 7, 반복 3–5회차는 8–10, 실행 폴더의 `run.json`). Track A는 pi가 seed를 지정하지 않습니다. thinking을 지원하는 모델은 기본 수준으로 둡니다.
+  - 샘플링은 모델 기본값입니다. Track B 요청은 회차마다 정한 seed로 고정합니다(최종 1–5회차 6–10, 첫 실행 2026-10-28은 7; 실행 폴더의 `run.json`). Track A는 pi가 seed를 지정하지 않습니다. thinking을 지원하는 모델은 기본 수준으로 둡니다.
   - BioGPT는 transformers(CPU)로 돌립니다(4.1절).
 - **데이터는 서버 밖으로 나가지 않습니다.** 로컬 모델만 쓰며, 보고서에 실리는 답변에서는 개인 ID를 `[IID]`로 가립니다.
 
@@ -268,7 +269,8 @@ SAM 하네스에 쓸 로컬 LLM을 어떻게 평가하는지 정리한 문서입
 This document describes how local LLMs are evaluated for the SAM harness. How to run the benchmark and the results are in
 [BENCHMARK.md](BENCHMARK.md); the scoring code is [bench/score.py](../bench/score.py); scenarios and questions are in
 [bench/scenarios.json](../bench/scenarios.json) and [bench/questions.json](../bench/questions.json). The criteria below are those
-applied in the 2026-10-28 run, including the post-run corrections in section 8.
+applied in the 2026-10-28 run, including the post-run corrections in section 8. Worked scoring examples, the weights and their
+rationale, partial credit in Track B and the role of the random seed are in [EVALUATION_SUPPLE.md](EVALUATION_SUPPLE.md) (Korean).
 
 ## 1. Purpose
 
@@ -298,7 +300,7 @@ An LLM plays two roles in the harness, and each role has its own track.
   raw answers.
 - **Same conditions for every model.**
   - Every model runs as an Ollama variant `bench-<id>` (`num_ctx` 32768, or the model maximum if smaller; output cap 8192 tokens).
-  - Sampling uses the model defaults. Track B requests use a fixed seed (7 in repeats 1–2, 8–10 in repeats 3–5; `run.json` in the run folder); in Track A, pi does not set a seed. Models with thinking support use their default level.
+  - Sampling uses the model defaults. Track B requests use a seed fixed per run (6–10 in the final repeats 1–5, 7 in the first run 2026-10-28; `run.json` in the run folder); in Track A, pi does not set a seed. Models with thinking support use their default level.
   - BioGPT runs with transformers on the CPU (section 4.1).
 - **Data stays on the server.** Only local models are used; individual IDs in answers shown in reports are masked as `[IID]`.
 

@@ -17,7 +17,7 @@
 | 읽기 전용 보장 | 입력·리소스 쓰기를 **커널(Linux Landlock)** 이 막음(`src/samkit/sandbox.py`, R40). 가드는 먼저 거절하고 이유를 설명 |
 | 기본 모델 | 로컬 **Gemma 4 31B**(`ollama/sam-gemma4-31b`), 에이전트·자문 공용. 클라우드 모델은 쓰지 않음(팀 결정) |
 | 로컬 LLM 벤치마크 | 27개 모델·변형 × 5회 반복. 모두 hart에서 같은 조건으로 완료(1·2회차 `2026-10-30-hart-r1/r2`는 10-31 07:33 재실행 완료, 3–5회차 `2026-10-29-hart-r3/r4/r5`; 옛 `2026-10-28`, `2026-10-28-hart`는 집계 제외). 반복 종합 `output/bench/repeats/FINAL.md`(평균 ± SD), 회차별 `output/bench/<실행 ID>/reports/` |
-| 문서 | README, SETUP, USAGE, USECASES, WORKFLOW, DESIGN, TOOLS, MODELS, BENCHMARK, EVALUATION, REVIEW-2026-10-27, ISSUES-2026-10-28, ISSUES-2026-10-29, LLAMA4-TEMPLATE-2026-10-29, QC, EXPERT-INPUT, 이 문서 |
+| 문서 | README, SETUP, USAGE, USECASES, WORKFLOW, DESIGN, TOOLS, MODELS, BENCHMARK, EVALUATION, EVALUATION_SUPPLE, REVIEW-2026-10-27, ISSUES-2026-10-28, ISSUES-2026-10-29, LLAMA4-TEMPLATE-2026-10-29, QC, EXPERT-INPUT, 이 문서 |
 | 테스트 | `./sam test`: Python 43개 + 가드 14개 통과, `ruff check src tests bench` 통과 |
 
 검증에 쓴 서버: NVIDIA RTX PRO 5000 Blackwell 48 GB, RAM 123 GB, 16코어, Debian 13(커널 6.12), Ollama 0.40.11(`/usr/local/bin/ollama`,
@@ -188,6 +188,7 @@ rsync -a <옛 서버>:/projects/NIH/sam.pi.nih/sam-data/ ./sam-data/      # 또�
 | — | 기본 자문 모델을 GPT-OSS 120B로 바꿀지(반복 벤치마크 제안, 주 모델은 Gemma 4 31B 유지 제안) |
 | — | 가드의 bash 쓰기 대상 판별이 따옴표 안을 건너뛰게 고칠지(ISSUES-2026-10-29 #17), bash `timeout` 상한·루트 재귀 나열 경고(#5) |
 | — | `docs/MODELS.md`에 "Llama·Mistral 계열은 Ollama 기본 템플릿이 에이전트 대화에서 규칙·도구 목록을 빠뜨림"을 적을지, Ollama에 알릴지(외부 공개) |
+| — | 채점 규칙의 빈틈을 보정할지(`docs/EVALUATION_SUPPLE.md` 7절: K03·A9 정규식 거짓 음성, 계산한 수치의 근거율 감점, 빈 답의 부분 점수, 객관식 정답 B 쏠림, 무행동 답의 바닥 점수 등). 보정하면 전 회차 재채점 |
 | — | genome103 데이터로 시험, 클라우드 모델 시험(보류 중) |
 | — | Me-LLaMA: PhysioNet 자격 인증을 받으면 13B-chat 추가 |
 | — | 옛 서버의 벤치마크 Ollama 인스턴스(11435)와 저장소(94 GB) 정리 |
@@ -303,3 +304,4 @@ R 번호는 [REVIEW-2026-10-27.md](REVIEW-2026-10-27.md)의 이슈 번호입니�
 - 10-30 18:37 – 10-31 07:33 1·2회차 재실행(`2026-10-30-hart-r1/r2`, 오류·시간 초과·치명 실패 없음), 반복 종합 보고서를 새 다섯 회차로 다시 씀(결론 그대로). `bench/aggregate.py`: `run.json`에 `superseded_by`가 있는 회차는 집계에서 뺌(옛 1·2회차에 표시). 재실행 전 종합은 `output/bench/repeats/before-rerun/`
 - `bench/score.py`: 가드가 따옴표 안의 awk 비교식(`NR>1`)을 쓰기로 잘못 읽어 막은 읽기 명령은 입력 수정 시도로 세지 않음(⑥, ISSUES-2026-10-29 #17)
 - `docs/BENCHMARK.md` 7절, `docs/EVALUATION.md` 보정 ⑥, 보고서 공통 절 채점 이력 ⑥, `docs/LLAMA4-TEMPLATE-2026-10-29.md` 5.2절 완성, 이 문서
+- `docs/EVALUATION_SUPPLE.md`(10-31): 실제 채점 사례, 가중치 값과 근거(모두 1로 바꿔도 순위 상관 0.995), Track B 부분 점수, seed의 역할. 규칙의 빈틈 8가지를 찾아 적음(무행동 답의 Track A 바닥 0.57, K03·A9 정규식 거짓 음성, 계산한 수치의 근거율 감점, 빈 답의 부분 점수, 객관식 정답 B 쏠림 등). 보정은 팀 결정 대기. `docs/EVALUATION.md`의 seed 설명을 최종 회차 값(6–10)으로 고침
